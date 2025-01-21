@@ -87,7 +87,8 @@ training_args = TrainingArguments(
     fp16=True,
     seed=42,
     dataloader_num_workers=24,  # Увеличено число потоков для загрузки данных
-    report_to=[]
+    report_to=[],
+    load_best_model_at_end=True
 )
 
 
