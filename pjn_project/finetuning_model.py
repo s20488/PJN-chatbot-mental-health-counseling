@@ -92,6 +92,7 @@ training_args = TrainingArguments(
     seed=42,
     gradient_checkpointing=True,
     optim="adamw_torch",
+    load_best_model_at_end=True,
     report_to=[],
 )
 
