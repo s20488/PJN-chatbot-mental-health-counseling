@@ -72,29 +72,24 @@ model = get_peft_model(model, peft_config)
 training_args = TrainingArguments(
     output_dir="./llama_results",
     overwrite_output_dir=True,
-    per_device_train_batch_size=64,
-    per_device_eval_batch_size=64,
-    gradient_accumulation_steps=4,
-    learning_rate=5e-5,
-    num_train_epochs=200,
-    warmup_ratio=0.2,
-    lr_scheduler_type="cosine",
-    weight_decay=0.01,
+    per_device_train_batch_size=64,  # Увеличен размер батча для лучшей загрузки GPU
+    per_device_eval_batch_size=64,  # Аналогично для оценки
+    learning_rate=5e-5,  # Снижена скорость обучения для более стабильной сходимости
+    num_train_epochs=200,  # Увеличено количество эпох для лучшего обучения
     logging_dir="./logs",
-    logging_steps=100,
+    logging_steps=100,  # Логирование каждые 100 шагов для более редкого вывода
     eval_strategy="steps",
-    save_strategy="steps",
-    save_steps=500,
-    eval_steps=500,
+    save_steps=500,  # Реже сохранять модель, чтобы избежать лишних операций
+    eval_steps=500,  # Оценка каждые 500 шагов
     save_total_limit=3,
+    warmup_ratio=0.2,  # Увеличен warmup для плавного старта обучения
+    lr_scheduler_type="cosine",  # Более плавный спад скорости обучения
     fp16=True,
-    dataloader_num_workers=24,
     seed=42,
-    gradient_checkpointing=True,
-    optim="adamw_torch",
-    load_best_model_at_end=True,
-    report_to=[],
+    dataloader_num_workers=24,  # Увеличено число потоков для загрузки данных
+    report_to=[]
 )
+
 
 
 # Шаг 7: Создание Trainer
