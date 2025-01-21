@@ -78,7 +78,7 @@ training_args = TrainingArguments(
     num_train_epochs=3,
     logging_dir="./logs",
     logging_steps=50,
-    evaluation_strategy="steps",
+    eval_strategy="steps",
     save_steps=200,
     eval_steps=200,
     save_total_limit=2,
@@ -86,7 +86,8 @@ training_args = TrainingArguments(
     lr_scheduler_type="cosine",
     fp16=True,
     seed=42,
-    dataloader_num_workers=4
+    dataloader_num_workers=2,
+    report_to=[]
 )
 
 # Шаг 7: Создание Trainer
