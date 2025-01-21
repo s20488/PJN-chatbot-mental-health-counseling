@@ -96,7 +96,7 @@ trainer = Trainer(
     args=training_args,
     train_dataset=train_dataset,
     eval_dataset=validation_dataset,
-    tokenizer=tokenizer
+    processing_class=tokenizer
 )
 
 # Шаг 8: Обучение модели
