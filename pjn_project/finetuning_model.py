@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, EarlyStoppingCallback
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
@@ -72,23 +72,29 @@ model = get_peft_model(model, peft_config)
 training_args = TrainingArguments(
     output_dir="./llama_results",
     overwrite_output_dir=True,
-    per_device_train_batch_size=16,
-    per_device_eval_batch_size=16,
-    learning_rate=0.0001,
-    num_train_epochs=3,
-    logging_dir="./logs",
-    logging_steps=50,
-    eval_strategy="steps",
-    save_steps=200,
-    eval_steps=200,
-    save_total_limit=2,
-    warmup_ratio=0.05,
+    per_device_train_batch_size=64,
+    per_device_eval_batch_size=64,
+    gradient_accumulation_steps=4,
+    learning_rate=5e-5,
+    num_train_epochs=200,
+    warmup_ratio=0.2,
     lr_scheduler_type="cosine",
+    weight_decay=0.01,
+    logging_dir="./logs",
+    logging_steps=100,
+    eval_strategy="steps",
+    save_strategy="steps",
+    save_steps=500,
+    eval_steps=500,
+    save_total_limit=3,
     fp16=True,
+    dataloader_num_workers=4,
     seed=42,
-    dataloader_num_workers=2,
-    report_to=[]
+    gradient_checkpointing=True,
+    optim="adamw_torch",
+    report_to=[],
 )
+
 
 # Шаг 7: Создание Trainer
 trainer = Trainer(
@@ -96,7 +102,8 @@ trainer = Trainer(
     args=training_args,
     train_dataset=train_dataset,
     eval_dataset=validation_dataset,
-    processing_class=tokenizer
+    processing_class=tokenizer,
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
 )
 
 # Шаг 8: Обучение модели
