@@ -75,7 +75,6 @@ training_args = TrainingArguments(
     overwrite_output_dir=True,
     per_device_train_batch_size=64,
     per_device_eval_batch_size=64,
-    gradient_accumulation_steps=4,
     learning_rate=2e-5,
     num_train_epochs=20,
     logging_dir="./logs",
