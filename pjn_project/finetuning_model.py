@@ -35,10 +35,10 @@ if tokenizer.pad_token is None:
 def preprocess_data(example):
     return {
         "input_ids": tokenizer(
-            example["Context"], truncation=True, padding="max_length", max_length=256
+            example["Context"], truncation=True, padding="max_length", max_length=512
         )["input_ids"],
         "labels": tokenizer(
-            example["Response"], truncation=True, padding="max_length", max_length=256
+            example["Response"], truncation=True, padding="max_length", max_length=512
         )["input_ids"],
     }
 
@@ -71,8 +71,8 @@ model = get_peft_model(model, peft_config)
 training_args = TrainingArguments(
     output_dir="./llama_results",
     overwrite_output_dir=True,
-    per_device_train_batch_size=64,
-    per_device_eval_batch_size=64,
+    per_device_train_batch_size=128,
+    per_device_eval_batch_size=128,
     learning_rate=5e-5,
     num_train_epochs=200,
     logging_dir="./logs",
