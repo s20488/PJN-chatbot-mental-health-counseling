@@ -1,4 +1,3 @@
-import os
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, EarlyStoppingCallback
 from peft import LoraConfig, get_peft_model
@@ -25,28 +24,23 @@ validation_dataset = train_validation_split["test"]
 print(f"Train size: {len(train_dataset)}, Validation size: {len(validation_dataset)}")
 
 # Шаг 2: Загрузка токенизатора
-tokenizer = AutoTokenizer.from_pretrained(
-    "mistralai/Mistral-7B-Instruct-v0.2", use_auth_token=True
-)
+base_model = "JackFram/llama-68m"
+tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
 
-# Установим pad_token, если он отсутствует
+# Установим pad_token, чтобы избежать ошибки
 if tokenizer.pad_token is None:
-    tokenizer.add_special_tokens({"pad_token": tokenizer.eos_token})
+    tokenizer.pad_token = tokenizer.eos_token
 
 # Шаг 3: Предобработка данных
+max_length = 2048
+
 def preprocess_data(example):
     return {
         "input_ids": tokenizer(
-            example["Context"],
-            truncation=True,
-            padding="max_length",
-            max_length=1024  # Проверьте, поддерживает ли модель 2048 токенов
+            example["Context"], truncation=True, padding="max_length", max_length=max_length
         )["input_ids"],
         "labels": tokenizer(
-            example["Response"],
-            truncation=True,
-            padding="max_length",
-            max_length=1024
+            example["Response"], truncation=True, padding="max_length", max_length=max_length
         )["input_ids"],
     }
 
@@ -58,20 +52,16 @@ validation_dataset = validation_dataset.remove_columns(["Context", "Response"])
 
 # Шаг 4: Загрузка модели
 model = AutoModelForCausalLM.from_pretrained(
-    "mistralai/Mistral-7B-Instruct-v0.2",
-    use_auth_token=True,
+    base_model,
     device_map="auto",
     torch_dtype=torch.float16
 )
 
-# Обновляем модель для учёта дополнительных токенов
-model.resize_token_embeddings(len(tokenizer))
-
 # Шаг 5: Настройка PEFT (LoRA)
 peft_config = LoraConfig(
-    r=8,
-    lora_alpha=16,
-    target_modules=["q_proj", "v_proj"],
+    r=16,  # Увеличено для улучшения представления
+    lora_alpha=32,
+    target_modules=["q_proj", "v_proj", "k_proj", "o_proj"],  # Дополнительные модули
     lora_dropout=0.1,
     bias="none",
     task_type="CAUSAL_LM"
@@ -83,23 +73,23 @@ model = get_peft_model(model, peft_config)
 training_args = TrainingArguments(
     output_dir="./llama_results",
     overwrite_output_dir=True,
-    per_device_train_batch_size=8,
-    per_device_eval_batch_size=8,
-    learning_rate=0.0002,
-    num_train_epochs=3,
+    per_device_train_batch_size=256,  # Размер батча оставлен без изменений
+    per_device_eval_batch_size=256,
+    learning_rate=2e-5,  # Уменьшено для стабильного обучения
+    num_train_epochs=200,  # Оптимально для проверки
     logging_dir="./logs",
-    logging_steps=100,
-    eval_strategy="steps",
-    save_steps=500,
-    eval_steps=500,
+    logging_steps=50,
+    eval_steps=200,
+    save_steps=200,
     save_total_limit=3,
-    warmup_ratio=0.05,
+    warmup_ratio=0.1,  # Уменьшено для более быстрого старта
     lr_scheduler_type="cosine",
     fp16=True,
+    gradient_checkpointing=True,  # Экономия памяти
     seed=42,
-    dataloader_num_workers=4,  # Для локальных машин можно уменьшить
+    dataloader_num_workers=24,  # Эффективная загрузка данных
     report_to=[],
-    optim="adamw_torch",
+    load_best_model_at_end=True
 )
 
 # Шаг 7: Создание Trainer
@@ -109,7 +99,7 @@ trainer = Trainer(
     train_dataset=train_dataset,
     eval_dataset=validation_dataset,
     tokenizer=tokenizer,
-    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=10)],
 )
 
 # Шаг 8: Обучение модели
@@ -117,7 +107,6 @@ trainer.train()
 
 # Шаг 9: Сохранение дообученного адаптера
 adapter_save_path = "./llama_mental_health_adapter"
-os.makedirs(adapter_save_path, exist_ok=True)
 model.save_pretrained(adapter_save_path)
 tokenizer.save_pretrained(adapter_save_path)
 
