@@ -32,15 +32,13 @@ if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 
 # Шаг 3: Предобработка данных
-max_length = 512
-
 def preprocess_data(example):
     return {
         "input_ids": tokenizer(
-            example["Context"], truncation=True, padding="max_length", max_length=max_length
+            example["Context"], truncation=True, padding="max_length", max_length=256
         )["input_ids"],
         "labels": tokenizer(
-            example["Response"], truncation=True, padding="max_length", max_length=max_length
+            example["Response"], truncation=True, padding="max_length", max_length=256
         )["input_ids"],
     }
 
@@ -59,9 +57,9 @@ model = AutoModelForCausalLM.from_pretrained(
 
 # Шаг 5: Настройка PEFT (LoRA)
 peft_config = LoraConfig(
-    r=16,  # Увеличено для улучшения представления
-    lora_alpha=32,
-    target_modules=["q_proj", "v_proj", "k_proj", "o_proj"],  # Дополнительные модули
+    r=8,
+    lora_alpha=16,
+    target_modules=["q_proj", "v_proj"],
     lora_dropout=0.1,
     bias="none",
     task_type="CAUSAL_LM"
@@ -73,24 +71,23 @@ model = get_peft_model(model, peft_config)
 training_args = TrainingArguments(
     output_dir="./llama_results",
     overwrite_output_dir=True,
-    per_device_train_batch_size=128,
-    per_device_eval_batch_size=128,
-    learning_rate=2e-5,
-    num_train_epochs=20,
+    per_device_train_batch_size=64,
+    per_device_eval_batch_size=64,
+    learning_rate=5e-5,
+    num_train_epochs=200,
     logging_dir="./logs",
-    logging_steps=50,
-    eval_steps=200,  # Оценка каждые 200 шагов
-    save_steps=200,  # Сохранение каждые 200 шагов
-    evaluation_strategy="steps",  # Включить стратегию оценки
-    save_strategy="steps",  # Сохранение на тех же шагах, что и оценка
-    load_best_model_at_end=True,
-    warmup_ratio=0.1,
+    logging_steps=100,
+    eval_strategy="steps",
+    save_steps=500,
+    eval_steps=500,
+    save_total_limit=3,
+    warmup_ratio=0.2,
     lr_scheduler_type="cosine",
     fp16=True,
-    gradient_checkpointing=True,
     seed=42,
     dataloader_num_workers=24,
     report_to=[],
+    load_best_model_at_end=True
 )
 
 # Шаг 7: Создание Trainer
@@ -99,8 +96,8 @@ trainer = Trainer(
     args=training_args,
     train_dataset=train_dataset,
     eval_dataset=validation_dataset,
-    tokenizer=tokenizer,
-    callbacks=[EarlyStoppingCallback(early_stopping_patience=10)],
+    processing_class=tokenizer,
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
 )
 
 # Шаг 8: Обучение модели
