@@ -6,8 +6,8 @@ from peft import PeftModel
 base_model = "JackFram/llama-68m"
 model = AutoModelForCausalLM.from_pretrained(base_model)
 
-# Загрузка адаптера (укажи правильный путь к адаптеру)
-adapter_path = "./llama_mental_health_adapter"  # Обнови путь, если адаптер сохранён в другом месте
+# Загрузка адаптера
+adapter_path = "./llama_mental_health_adapter"
 model = PeftModel.from_pretrained(model, adapter_path)
 
 # Перевод модели в режим оценки
@@ -21,17 +21,23 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
 # Текст для генерации ответа
-input_text = "I have been dealing with depression and anxiety for a number of years. I have been on medication, but lately my depression has felt worse. Can counseling help?"
+input_text = (
+    "I have been dealing with depression and anxiety for a number of years. "
+    "I have been on medication, but lately my depression has felt worse. Can counseling help?"
+)
 input_ids = tokenizer(input_text, return_tensors="pt").input_ids.to(device)
 
-# Генерация текста с penalty_alpha и top_k
+# Генерация текста с оптимизированными параметрами для длинного ответа
 output = model.generate(
     input_ids,
-    max_length=50,
-    temperature=0.7,        # Управляет разнообразием ответов
-    top_k=4,                # Использует только 4 вероятных токена
-    penalty_alpha=0.5,      # Штраф за повторение
-    do_sample=True          # Включает сэмплирование
+    max_length=500,            # Максимальная длина текста
+    temperature=0.8,           # Баланс разнообразия
+    top_k=50,                  # Расширение выбора
+    top_p=0.9,                 # Нучное сэмплирование
+    penalty_alpha=0.6,         # Штраф за повторение
+    repetition_penalty=1.2,    # Дополнительный штраф за повторы
+    no_repeat_ngram_size=3,    # Запрет на повторение фраз из 3 слов
+    do_sample=True             # Сэмплирование
 )
 
 # Расшифровка и вывод результата
