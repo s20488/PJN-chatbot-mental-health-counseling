@@ -3,8 +3,13 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, EarlyStoppingCallback
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
+from dotenv import load_dotenv
 import random
 import numpy as np
+
+# Загрузка переменных окружения
+load_dotenv()
+token = os.getenv("HUGGINGFACE_TOKEN")
 
 # Установка seed для воспроизводимости
 random.seed(42)
@@ -26,10 +31,10 @@ print(f"Train size: {len(train_dataset)}, Validation size: {len(validation_datas
 
 # Шаг 2: Загрузка токенизатора
 tokenizer = AutoTokenizer.from_pretrained(
-    "mistralai/Mistral-7B-Instruct-v0.2", use_auth_token=True
+    "mistralai/Mistral-7B-Instruct-v0.2", token=token
 )
 
-# Установим pad_token, если он отсутствует
+# Установим pad_token, чтобы избежать ошибки
 if tokenizer.pad_token is None:
     tokenizer.add_special_tokens({"pad_token": tokenizer.eos_token})
 
@@ -59,7 +64,7 @@ validation_dataset = validation_dataset.remove_columns(["Context", "Response"])
 # Шаг 4: Загрузка модели
 model = AutoModelForCausalLM.from_pretrained(
     "mistralai/Mistral-7B-Instruct-v0.2",
-    use_auth_token=True,
+    token=token,
     device_map="auto",
     torch_dtype=torch.float16
 )
