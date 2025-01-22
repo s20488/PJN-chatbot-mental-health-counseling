@@ -24,7 +24,7 @@ validation_dataset = train_validation_split["test"]
 print(f"Train size: {len(train_dataset)}, Validation size: {len(validation_dataset)}")
 
 # Шаг 2: Загрузка токенизатора
-base_model = "JackFram/llama-160m"
+base_model = "JackFram/llama-68m"
 tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
 
 # Установим pad_token, чтобы избежать ошибки
@@ -41,7 +41,6 @@ def preprocess_data(example):
             example["Response"], truncation=True, padding="max_length", max_length=256
         )["input_ids"],
     }
-
 
 train_dataset = train_dataset.map(preprocess_data, batched=True)
 validation_dataset = validation_dataset.map(preprocess_data, batched=True)
@@ -90,8 +89,6 @@ training_args = TrainingArguments(
     report_to=[],
     load_best_model_at_end=True
 )
-
-
 
 # Шаг 7: Создание Trainer
 trainer = Trainer(
