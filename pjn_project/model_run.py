@@ -1,72 +1,111 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftConfig, PeftModel
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, EarlyStoppingCallback
+from peft import LoraConfig, get_peft_model
+from datasets import load_dataset
+import random
+import numpy as np
 
-# Параметры модели и адаптера
-base_model = "mistralai/Mistral-7B-Instruct-v0.2"
-adapter = "./llama_mental_health_adapter"
+# Установка seed для воспроизводимости
+random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
+torch.cuda.manual_seed_all(42)
 
-# Загрузка токенизатора
-tokenizer = AutoTokenizer.from_pretrained(
-    base_model,
-    add_bos_token=True,
-    trust_remote_code=True,
-    padding_side='left'
-)
+# Шаг 1: Загрузка данных
+dataset = load_dataset("json", data_files="combined_dataset.json")
 
-# Установка pad_token, если не установлен
+# Разделение данных на тренировочную, валидационную и тестовую части
+train_test_split = dataset["train"].train_test_split(test_size=0.2, seed=42)
+train_validation_split = train_test_split["train"].train_test_split(test_size=0.1, seed=42)
+
+train_dataset = train_validation_split["train"]
+validation_dataset = train_validation_split["test"]
+
+print(f"Train size: {len(train_dataset)}, Validation size: {len(validation_dataset)}")
+
+# Шаг 2: Загрузка токенизатора
+base_model = "JackFram/llama-68m"
+tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
+
+# Установим pad_token, чтобы избежать ошибки
 if tokenizer.pad_token is None:
-    tokenizer.add_special_tokens({"pad_token": "<pad>"})
+    tokenizer.pad_token = tokenizer.eos_token
 
-# Загрузка модели и адаптера
-config = PeftConfig.from_pretrained(adapter)
+# Шаг 3: Предобработка данных
+def preprocess_data(example):
+    return {
+        "input_ids": tokenizer(
+            example["Context"], truncation=True, padding="max_length", max_length=256
+        )["input_ids"],
+        "labels": tokenizer(
+            example["Response"], truncation=True, padding="max_length", max_length=256
+        )["input_ids"],
+    }
+
+train_dataset = train_dataset.map(preprocess_data, batched=True)
+validation_dataset = validation_dataset.map(preprocess_data, batched=True)
+
+train_dataset = train_dataset.remove_columns(["Context", "Response"])
+validation_dataset = validation_dataset.remove_columns(["Context", "Response"])
+
+# Шаг 4: Загрузка модели
 model = AutoModelForCausalLM.from_pretrained(
-    config.base_model_name_or_path,
-    load_in_4bit=True,
-    device_map='auto',
-    torch_dtype='auto'
-)
-model = PeftModel.from_pretrained(model, adapter)
-
-# Увеличение размера токенов для поддержки новых токенов
-model.resize_token_embeddings(len(tokenizer))
-
-# Устройство для вычислений
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model.to(device)
-model.eval()
-
-# Пример контента (prompt)
-messages = [
-    {"role": "user", "content": "Hey Connor! I have been feeling a bit down lately. I could really use some advice on how to feel better?"}
-]
-
-# Токенизация ввода с генерацией attention_mask
-input_text = tokenizer.apply_chat_template(
-    conversation=messages,
-    tokenize=False
-)
-tokenized_input = tokenizer(
-    input_text,
-    return_tensors="pt",
-    padding=True,
-    truncation=True,
-    max_length=1024  # Максимальная длина ввода
-).to(device)
-
-# Генерация ответа модели
-output_ids = model.generate(
-    input_ids=tokenized_input["input_ids"],
-    attention_mask=tokenized_input["attention_mask"],  # Передача attention_mask
-    max_new_tokens=512,
-    do_sample=True,
-    temperature=0.7,  # Контроль случайности генерации
-    top_p=0.9,        # Контроль для nucleus sampling
-    pad_token_id=tokenizer.pad_token_id
+    base_model,
+    device_map="auto",
+    torch_dtype=torch.float16
 )
 
-# Декодирование ответа
-response = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
+# Шаг 5: Настройка PEFT (LoRA)
+peft_config = LoraConfig(
+    r=8,
+    lora_alpha=16,
+    target_modules=["q_proj", "v_proj"],
+    lora_dropout=0.1,
+    bias="none",
+    task_type="CAUSAL_LM"
+)
 
-# Вывод ответа модели
-print(response[0])
+model = get_peft_model(model, peft_config)
+
+# Шаг 6: Настройка гиперпараметров обучения
+training_args = TrainingArguments(
+    output_dir="./llama_results",
+    overwrite_output_dir=True,
+    per_device_train_batch_size=64,
+    per_device_eval_batch_size=64,
+    learning_rate=5e-5,
+    num_train_epochs=200,
+    logging_dir="./logs",
+    logging_steps=100,
+    eval_strategy="steps",
+    save_steps=500,
+    eval_steps=500,
+    save_total_limit=3,
+    warmup_ratio=0.2,
+    lr_scheduler_type="cosine",
+    fp16=True,
+    seed=42,
+    dataloader_num_workers=24,
+    report_to=[],
+    load_best_model_at_end=True
+)
+
+# Шаг 7: Создание Trainer
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=validation_dataset,
+    processing_class=tokenizer,
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+)
+
+# Шаг 8: Обучение модели
+trainer.train()
+
+# Шаг 9: Сохранение дообученного адаптера
+adapter_save_path = "./llama_mental_health_adapter"
+model.save_pretrained(adapter_save_path)
+tokenizer.save_pretrained(adapter_save_path)
+
+print(f"A model adapter was saved at: {adapter_save_path}")
