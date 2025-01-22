@@ -29,14 +29,14 @@ input_text = (
 )
 
 input_ids = tokenizer(
-    input_text, return_tensors="pt", truncation=True, max_length=2048
+    input_text, return_tensors="pt", truncation=True, max_length=512
 ).input_ids.to(device)
 
 # Генерация текста с оптимизированными параметрами для длинного ответа
 with torch.no_grad():  # Для экономии памяти
     output = model.generate(
         input_ids,
-        max_length=500,            # Максимальная длина текста
+        max_length=512,            # Максимальная длина текста
         temperature=0.8,           # Баланс разнообразия
         top_k=50,                  # Расширение выбора
         top_p=0.9,                 # Нучное сэмплирование

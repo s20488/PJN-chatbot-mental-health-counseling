@@ -32,7 +32,7 @@ if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 
 # Шаг 3: Предобработка данных
-max_length = 2048
+max_length = 512
 
 def preprocess_data(example):
     return {
@@ -73,8 +73,8 @@ model = get_peft_model(model, peft_config)
 training_args = TrainingArguments(
     output_dir="./llama_results",
     overwrite_output_dir=True,
-    per_device_train_batch_size=64,
-    per_device_eval_batch_size=64,
+    per_device_train_batch_size=256,
+    per_device_eval_batch_size=256,
     learning_rate=2e-5,
     num_train_epochs=20,
     logging_dir="./logs",
