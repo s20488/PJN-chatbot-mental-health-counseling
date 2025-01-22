@@ -73,23 +73,24 @@ model = get_peft_model(model, peft_config)
 training_args = TrainingArguments(
     output_dir="./llama_results",
     overwrite_output_dir=True,
-    per_device_train_batch_size=256,  # Размер батча оставлен без изменений
+    per_device_train_batch_size=256,
     per_device_eval_batch_size=256,
-    learning_rate=2e-5,  # Уменьшено для стабильного обучения
-    num_train_epochs=200,  # Оптимально для проверки
+    learning_rate=2e-5,
+    num_train_epochs=20,
     logging_dir="./logs",
     logging_steps=50,
-    eval_steps=200,
-    save_steps=200,
-    save_total_limit=3,
-    warmup_ratio=0.1,  # Уменьшено для более быстрого старта
+    eval_steps=200,  # Оценка каждые 200 шагов
+    save_steps=200,  # Сохранение каждые 200 шагов
+    evaluation_strategy="steps",  # Включить стратегию оценки
+    save_strategy="steps",  # Сохранение на тех же шагах, что и оценка
+    load_best_model_at_end=True,
+    warmup_ratio=0.1,
     lr_scheduler_type="cosine",
     fp16=True,
-    gradient_checkpointing=True,  # Экономия памяти
+    gradient_checkpointing=True,
     seed=42,
-    dataloader_num_workers=24,  # Эффективная загрузка данных
+    dataloader_num_workers=24,
     report_to=[],
-    load_best_model_at_end=True
 )
 
 # Шаг 7: Создание Trainer
