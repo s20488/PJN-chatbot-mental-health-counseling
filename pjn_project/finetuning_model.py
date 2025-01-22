@@ -24,21 +24,28 @@ validation_dataset = train_validation_split["test"]
 print(f"Train size: {len(train_dataset)}, Validation size: {len(validation_dataset)}")
 
 # Шаг 2: Загрузка токенизатора
-base_model = "JackFram/llama-68m"
+base_model = "mistralai/Mistral-7B-Instruct-v0.2"
 tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
 
 # Установим pad_token, чтобы избежать ошибки
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 
+
 # Шаг 3: Предобработка данных
 def preprocess_data(example):
     return {
         "input_ids": tokenizer(
-            example["Context"], truncation=True, padding="max_length", max_length=256
+            example["Context"],
+            truncation=True,
+            padding="max_length",
+            max_length=2048  # Увеличиваем длину до 2048 токенов
         )["input_ids"],
         "labels": tokenizer(
-            example["Response"], truncation=True, padding="max_length", max_length=256
+            example["Response"],
+            truncation=True,
+            padding="max_length",
+            max_length=2048  # Аналогично для ответа
         )["input_ids"],
     }
 
@@ -71,23 +78,23 @@ model = get_peft_model(model, peft_config)
 training_args = TrainingArguments(
     output_dir="./llama_results",
     overwrite_output_dir=True,
-    per_device_train_batch_size=64,
-    per_device_eval_batch_size=64,
-    learning_rate=5e-5,
-    num_train_epochs=200,
+    per_device_train_batch_size=8,       # Указанный batch size
+    per_device_eval_batch_size=8,       # Указанный batch size
+    learning_rate=0.0002,               # Указанный learning rate
+    num_train_epochs=3,                 # Указанное число эпох
     logging_dir="./logs",
     logging_steps=100,
     eval_strategy="steps",
     save_steps=500,
     eval_steps=500,
     save_total_limit=3,
-    warmup_ratio=0.2,
-    lr_scheduler_type="cosine",
-    fp16=True,
+    warmup_ratio=0.05,                  # Указанный warmup_ratio
+    lr_scheduler_type="cosine",         # Указанный scheduler
+    fp16=True,                          # Native AMP
     seed=42,
     dataloader_num_workers=24,
-    report_to=[],
-    load_best_model_at_end=True
+    report_to=[],                        # Без логирования в W&B или TensorBoard
+    optim="adamw_torch",                # Adam с параметрами по умолчанию
 )
 
 # Шаг 7: Создание Trainer
@@ -96,7 +103,7 @@ trainer = Trainer(
     args=training_args,
     train_dataset=train_dataset,
     eval_dataset=validation_dataset,
-    processing_class=tokenizer,
+    tokenizer=tokenizer,
     callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
 )
 
