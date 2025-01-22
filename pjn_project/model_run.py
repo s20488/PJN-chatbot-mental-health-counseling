@@ -1,45 +1,41 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
+from peft import PeftConfig, PeftModel
 
-# Загрузка базовой модели
-base_model = "JackFram/llama-68m"
-model = AutoModelForCausalLM.from_pretrained(base_model)
+base_model = "mistralai/Mistral-7B-Instruct-v0.2"
+adapter = "./llama_mental_health_adapter"
 
-# Загрузка адаптера
-adapter_path = "./llama_mental_health_adapter"
-model = PeftModel.from_pretrained(model, adapter_path)
+# Load tokenizer
+tokenizer = AutoTokenizer.from_pretrained(
+    base_model,
+    add_bos_token=True,
+    trust_remote_code=True,
+    padding_side='left'
+)
 
-# Перевод модели в режим оценки
+# Create peft model using base_model and finetuned adapter
+config = PeftConfig.from_pretrained(adapter)
+model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path,
+                                             load_in_4bit=True,
+                                             device_map='auto',
+                                             torch_dtype='auto')
+model = PeftModel.from_pretrained(model, adapter)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model.to(device)
 model.eval()
 
-# Загрузка токенизатора
-tokenizer = AutoTokenizer.from_pretrained(base_model)
+# Prompt content:
+messages = [
+    {"role": "user", "content": "Hey Connor! I have been feeling a bit down lately.I could really use some advice on how to feel better?"}
+]
 
-# Перемещение модели на устройство (GPU или CPU)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
+input_ids = tokenizer.apply_chat_template(conversation=messages,
+                                          tokenize=True,
+                                          add_generation_prompt=True,
+                                          return_tensors='pt').to(device)
+output_ids = model.generate(input_ids=input_ids, max_new_tokens=512, do_sample=True, pad_token_id=2)
+response = tokenizer.batch_decode(output_ids.detach().cpu().numpy(), skip_special_tokens = True)
 
-# Текст для генерации ответа
-input_text = (
-    "I have been dealing with depression and anxiety for a number of years. "
-    "I have been on medication, but lately my depression has felt worse. Can counseling help?"
-)
-input_ids = tokenizer(input_text, return_tensors="pt").input_ids.to(device)
-
-# Генерация текста с оптимизированными параметрами для длинного ответа
-output = model.generate(
-    input_ids,
-    max_length=500,            # Максимальная длина текста
-    temperature=0.8,           # Баланс разнообразия
-    top_k=50,                  # Расширение выбора
-    top_p=0.9,                 # Нучное сэмплирование
-    penalty_alpha=0.6,         # Штраф за повторение
-    repetition_penalty=1.2,    # Дополнительный штраф за повторы
-    no_repeat_ngram_size=3,    # Запрет на повторение фраз из 3 слов
-    do_sample=True             # Сэмплирование
-)
-
-# Расшифровка и вывод результата
-print("Сгенерированный ответ:")
-print(tokenizer.decode(output[0], skip_special_tokens=True))
+# Model response:
+print(response[0])
