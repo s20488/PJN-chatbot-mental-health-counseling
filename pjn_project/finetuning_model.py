@@ -82,19 +82,19 @@ ref_model = get_peft_model(ref_model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
-    learning_rate=1e-4,  # Увеличение скорости обучения для более быстрого обучения
+    learning_rate=3e-5,  # Увеличение скорости обучения для более быстрого обучения
     per_device_train_batch_size=128,  # Оставляем размер батча на прежнем уровне
     per_device_eval_batch_size=128,
     gradient_accumulation_steps=1,  # Уменьшение количества шагов накопления градиентов для более частого обновления параметров
     lr_scheduler_type="cosine",
-    num_train_epochs=1,  # Уменьшение количества эпох для ускорения обучения
+    num_train_epochs=100,  # Уменьшение количества эпох для ускорения обучения
     logging_strategy="steps",
     save_strategy="steps",
     eval_strategy="steps",  # Используем eval_strategy вместо evaluation_strategy
     logging_steps=5,  # Увеличение частоты логирования для более частого мониторинга
     eval_steps=5,
     save_steps=5,
-    warmup_steps=10,  # Уменьшение количества шагов разогрева для быстрой адаптации
+    warmup_steps=50,  # Уменьшение количества шагов разогрева для быстрой адаптации
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
@@ -136,23 +136,23 @@ sft_trainer.train()
 # Шаг 10: Настройка гиперпараметров обучения для DPOTrainer
 dpo_training_args = DPOConfig(
     output_dir="./dpo_results_test",  # Указание директории для сохранения результатов
-    learning_rate=2e-6,
-    per_device_train_batch_size=1,
-    per_device_eval_batch_size=1,
-    gradient_accumulation_steps=1,
+    learning_rate=3e-5,  # Скорость обучения, аналогичная SFTConfig
+    per_device_train_batch_size=128,  # Размер батча, аналогичный SFTConfig
+    per_device_eval_batch_size=128,
+    gradient_accumulation_steps=1,  # Количество шагов накопления градиентов, аналогичное SFTConfig
     lr_scheduler_type="cosine",
-    num_train_epochs=1,
+    num_train_epochs=100,  # Количество эпох, аналогичное SFTConfig
     logging_strategy="steps",
     save_strategy="steps",
-    evaluation_strategy="steps",
-    logging_steps=1,
-    eval_steps=1,
-    save_steps=1,
-    warmup_steps=0,
+    eval_strategy="steps",  # Используем eval_strategy вместо evaluation_strategy
+    logging_steps=5,  # Частота логирования, аналогичная SFTConfig
+    eval_steps=5,
+    save_steps=5,
+    warmup_steps=50,  # Количество шагов разогрева, аналогичное SFTConfig
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
-    weight_decay=0.0,
+    weight_decay=0.01,  # Весовая декомпозиция, аналогичная SFTConfig
     neftune_noise_alpha=5,
     remove_unused_columns=False,
 )
@@ -168,7 +168,7 @@ dpo_trainer = DPOTrainer(
     eval_dataset=validation_dataset,
     callbacks=[
         EarlyStoppingCallback(
-            early_stopping_patience=3,
+            early_stopping_patience=10,
             early_stopping_threshold=0.005
         ),
     ],
