@@ -52,7 +52,7 @@ with torch.no_grad():
         input_ids,
         max_length=max_length,
         temperature=0.7,  # Управляет разнообразием ответов
-        top_k=50,  # Увеличено для более разнообразных ответов
+        top_k=4,  # Использует только 4 вероятных токена
         repetition_penalty=1.2,  # Штраф за повторение
         penalty_alpha=0.5,  # Альфа штраф
         do_sample=True  # Включает сэмплирование
