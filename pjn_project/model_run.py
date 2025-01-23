@@ -70,7 +70,6 @@ predictions = [generated_text]
 bleu_score = bleu_metric.compute(predictions=predictions, references=[references])
 print(f"BLEU score: {bleu_score['bleu']}")
 
-
 # Метрика Perplexity
 def calculate_perplexity(text):
     encodings = tokenizer(text, return_tensors='pt')
@@ -95,16 +94,13 @@ def calculate_perplexity(text):
     ppl = torch.exp(torch.stack(lls).sum() / end_loc)
     return ppl.item()
 
-
 perplexity_score = calculate_perplexity(generated_text)
 print(f"Perplexity: {perplexity_score}")
-
 
 # Используем VADER для оценки эмпатии
 def vader_empathy_score(text):
     sentiment = sia.polarity_scores(text)
     return sentiment['compound']  # Эмпатия будет оценена как общий композитный балл
-
 
 empathy_score = vader_empathy_score(generated_text)
 print(f"Empathy Score (VADER): {empathy_score}")
@@ -116,9 +112,7 @@ dialog_quality_metrics = {
 }
 print(f"Dialog Quality Metrics: {dialog_quality_metrics}")
 
-
 # Обновленная метрика релевантности с учетом извлеченных ключевых слов
-
 def extract_keywords(text):
     doc = nlp(text)
     # Извлекаем существительные как ключевые слова
@@ -133,7 +127,6 @@ def relevance_score(text, prompt):
     # Считаем совпадения
     score = sum(1 for word in prompt_keywords if word in text_keywords) / len(prompt_keywords)
     return score
-
 
 relevance = relevance_score(generated_text, prompt)
 print(f"Relevance Score: {relevance}")
