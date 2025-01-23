@@ -15,13 +15,13 @@ import spacy
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from nltk.translate.bleu_score import corpus_bleu
 
-# Загружаем необходимые ресурсы для VADER
+# Ładujemy wymagane zasoby dla VADER
 nltk.download('vader_lexicon')
 
-# Инициализируем анализатор VADER
+# Inicjalizujemy analizator VADER
 sia = SentimentIntensityAnalyzer()
 
-# Загружаем spaCy модель
+# Ładujemy model spaCy
 nlp = spacy.load("en_core_web_sm")
 
 # model_name = "NousResearch/Llama-2-7b-chat-hf"
@@ -35,10 +35,10 @@ new_model = "llama-68m-finetune-qlora"
 
 device_map = {"": 0}
 
-# Ignore warnings
+# Ignorujemy ostrzeżenia
 logging.set_verbosity(logging.CRITICAL)
 
-# Reload model in FP16 and merge it with LoRA weights
+# Ponowne załadowanie modelu w FP16 i połączenie z wagami LoRA
 base_model = AutoModelForCausalLM.from_pretrained(
     model_name,
     low_cpu_mem_usage=True,
@@ -49,12 +49,12 @@ base_model = AutoModelForCausalLM.from_pretrained(
 model = PeftModel.from_pretrained(base_model, new_model)
 model = model.merge_and_unload()
 
-# Reload tokenizer to save it
+# Ponowne załadowanie tokenizera, aby go zapisać
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"
 
-# Run text generation pipeline with our next model
+# Uruchamiamy pipeline generowania tekstu z naszym modelem
 prompt = "Every winter I find myself getting sad because of the weather. How can I fight this??"
 pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, temperature=0.6, top_p=0.85,
                 no_repeat_ngram_size=2, eos_token_id=tokenizer.eos_token_id, do_sample=True)
@@ -63,12 +63,14 @@ result = pipe(f"<s>[INST] {prompt} [/INST]")
 generated_text = result[0]["generated_text"]
 print(f"Generated Text: {generated_text}")
 
-# Метрика BLEU
+
+# Metryka BLEU
 def calculate_bleu(references, candidates):
     reference_tokens = [[ref.split()] for ref in references]
     candidate_tokens = [cand.split() for cand in candidates]
     smoothing_function = SmoothingFunction().method1
     return corpus_bleu(reference_tokens, candidate_tokens, smoothing_function=smoothing_function)
+
 
 file_path = 'combined_dataset.json'
 with open(file_path, 'r', encoding='utf-8') as file:
@@ -80,7 +82,8 @@ candidates = [generated_text for _ in data]
 bleu_score = calculate_bleu(references, candidates)
 print(f"BLEU score: {bleu_score}")
 
-# Метрика Perplexity
+
+# Metryka Perplexity
 def calculate_perplexity(text):
     encodings = tokenizer(text, return_tensors='pt')
     max_length = model.config.max_position_embeddings
@@ -90,7 +93,7 @@ def calculate_perplexity(text):
     for i in range(0, encodings.input_ids.size(1), stride):
         begin_loc = max(i + stride - max_length, 0)
         end_loc = i + stride
-        trg_len = end_loc - i  # may be different from stride on last loop
+        trg_len = end_loc - i  # może się różnić od stride w ostatniej pętli
         input_ids = encodings.input_ids[:, begin_loc:end_loc].to(device_map[""])
         target_ids = input_ids.clone()
         target_ids[:, :-trg_len] = -100
@@ -104,44 +107,50 @@ def calculate_perplexity(text):
     ppl = torch.exp(torch.stack(lls).sum() / end_loc)
     return ppl.item()
 
+
 perplexity_score = calculate_perplexity(generated_text)
 print(f"Perplexity: {perplexity_score}")
 
-# Используем VADER для оценки эмпатии
+
+# Używamy VADER do oceny empatii
 def vader_empathy_score(text):
     sentiment = sia.polarity_scores(text)
-    return sentiment['compound']  # Эмпатия будет оценена как общий композитный балл
+    return sentiment['compound']  # Empatia będzie oceniana jako ogólny wynik kompozytowy
+
 
 empathy_score = vader_empathy_score(generated_text)
 print(f"Empathy Score (VADER): {empathy_score}")
 
-# Метрики качества диалога (например, длина ответа и уникальность слов)
+# Metryki jakości dialogu (np. długość odpowiedzi i unikalność słów)
 dialog_quality_metrics = {
     "length": len(generated_text.split()),
     "unique_words": len(set(generated_text.split()))
 }
 print(f"Dialog Quality Metrics: {dialog_quality_metrics}")
 
-# Обновленная метрика релевантности с учетом извлеченных ключевых слов
+
+# Zaktualizowana metryka trafności z uwzględnieniem wyciągniętych słów kluczowych
 def extract_keywords(text):
     doc = nlp(text)
-    # Извлекаем существительные как ключевые слова
+    # Wydobywamy rzeczowniki jako słowa kluczowe
     keywords = [token.text for token in doc if token.pos_ == "NOUN"]
     return keywords
 
+
 def relevance_score(text, prompt):
-    # Извлекаем ключевые слова из текста и запроса
+    # Wydobywamy słowa kluczowe z tekstu i zapytania
     prompt_keywords = extract_keywords(prompt)
     text_keywords = extract_keywords(text)
 
-    # Считаем совпадения
+    # Liczymy dopasowania
     score = sum(1 for word in prompt_keywords if word in text_keywords) / len(prompt_keywords)
     return score
+
 
 relevance = relevance_score(generated_text, prompt)
 print(f"Relevance Score: {relevance}")
 
-# Запись результатов метрик в файл с названием модели
+# Zapis wyników metryk do pliku z nazwą modelu
 results_file_path = f'metrics-results-{new_model}.json'
 metrics_results = {
     "model_name": new_model,
