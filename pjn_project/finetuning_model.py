@@ -136,26 +136,27 @@ sft_trainer.train()
 # Шаг 10: Настройка гиперпараметров обучения для DPOTrainer
 dpo_training_args = DPOConfig(
     output_dir="./dpo_results_test",  # Указание директории для сохранения результатов
-    learning_rate=1e-4,  # Увеличение скорости обучения для более быстрого обучения
-    per_device_train_batch_size=32,  # Оставляем размер батча на прежнем уровне
-    per_device_eval_batch_size=32,
-    gradient_accumulation_steps=1,  # Уменьшение количества шагов накопления градиентов для более частого обновления параметров
+    learning_rate=2e-6,
+    per_device_train_batch_size=1,
+    per_device_eval_batch_size=1,
+    gradient_accumulation_steps=1,
     lr_scheduler_type="cosine",
-    num_train_epochs=3,  # Уменьшение количества эпох для ускорения обучения
+    num_train_epochs=1,
     logging_strategy="steps",
     save_strategy="steps",
-    eval_strategy="steps",  # Используем eval_strategy вместо evaluation_strategy
-    logging_steps=5,  # Увеличение частоты логирования для более частого мониторинга
-    eval_steps=5,
-    save_steps=5,
-    warmup_steps=10,  # Уменьшение количества шагов разогрева для быстрой адаптации
+    evaluation_strategy="steps",
+    logging_steps=1,
+    eval_steps=1,
+    save_steps=1,
+    warmup_steps=0,
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
-    weight_decay=0.01,
+    weight_decay=0.0,
     neftune_noise_alpha=5,
     remove_unused_columns=False,
 )
+
 
 # Шаг 11: Создание DPOTrainer с использованием processing_class вместо tokenizer
 dpo_trainer = DPOTrainer(
