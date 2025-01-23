@@ -1,3 +1,6 @@
+import os
+import warnings
+
 import torch
 from transformers import (
     AutoTokenizer,
@@ -10,6 +13,13 @@ import evaluate
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 import spacy
+
+# Подавление всех предупреждений
+warnings.filterwarnings("ignore")
+
+# Перенаправление вывода nltk.download в os.devnull
+with open(os.devnull, 'w') as f:
+    nltk.download('vader_lexicon', quiet=True)
 
 # Загружаем необходимые ресурсы для VADER
 nltk.download('vader_lexicon')
