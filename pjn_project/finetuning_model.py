@@ -42,9 +42,9 @@ def preprocess_data(example):
         "labels": tokenizer(
             example["Response"], truncation=True, padding="max_length", max_length=512
         )["input_ids"],
-        "prompt": example["Context"],  # Добавляем ключ 'prompt' для DPOTrainer
-        "chosen": example["Response"],  # Добавляем ключ 'chosen' для DPOTrainer
-        "rejected": example["Response"]  # Добавляем ключ 'rejected' для DPOTrainer (замените на реальные данные)
+        "prompt": example["Context"],
+        "chosen": example["Response"],
+        "rejected": example["Response"]  # Замените на реальные данные
     }
 
 train_dataset = train_dataset.map(preprocess_data, batched=True)
@@ -125,8 +125,7 @@ sft_trainer = SFTTrainer(
     data_collator=data_collator,
     callbacks=[
         EarlyStoppingCallback(
-            early_stopping_patience=10,
-            early_stopping_threshold=0.005
+            early_stopping_patience=10
         ),
     ],
 )
@@ -167,8 +166,7 @@ dpo_trainer = DPOTrainer(
     eval_dataset=validation_dataset,
     callbacks=[
         EarlyStoppingCallback(
-            early_stopping_patience=10,
-            early_stopping_threshold=0.005
+            early_stopping_patience=10
         ),
     ],
 )
