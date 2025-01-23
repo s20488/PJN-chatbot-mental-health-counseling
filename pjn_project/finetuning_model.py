@@ -31,6 +31,7 @@ tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 
+
 # Шаг 3: Предобработка данных
 def preprocess_data(example):
     return {
@@ -41,6 +42,7 @@ def preprocess_data(example):
             example["Response"], truncation=True, padding="max_length", max_length=512
         )["input_ids"],
     }
+
 
 train_dataset = train_dataset.map(preprocess_data, batched=True)
 validation_dataset = validation_dataset.map(preprocess_data, batched=True)
@@ -69,9 +71,9 @@ model = get_peft_model(model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения
 training_args = TrainingArguments(
-    output_dir="./llama_results",
+    output_dir="./llama_results_test",
     overwrite_output_dir=True,
-    per_device_train_batch_size=128,  # Уменьшение размера батча
+    per_device_train_batch_size=128,
     per_device_eval_batch_size=128,
     learning_rate=5e-5,
     num_train_epochs=200,
@@ -88,7 +90,9 @@ training_args = TrainingArguments(
     dataloader_num_workers=24,
     report_to=[],
     load_best_model_at_end=True,
-    dataloader_pin_memory=True  # Ускорение передачи данных на GPU
+    dataloader_pin_memory=True,
+    gradient_accumulation_steps=2,  # Увеличение эффективного размера батча
+    weight_decay=0.01  # Регуляризация весов
 )
 
 # Шаг 7: Создание DataCollator
@@ -103,7 +107,7 @@ trainer = Trainer(
     args=training_args,
     train_dataset=train_dataset,
     eval_dataset=validation_dataset,
-    tokenizer=tokenizer,  # Исправление параметра
+    tokenizer=tokenizer,
     data_collator=data_collator,
     callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
 )
@@ -112,7 +116,7 @@ trainer = Trainer(
 trainer.train()
 
 # Шаг 10: Сохранение дообученного адаптера
-adapter_save_path = "./llama_mental_health_adapter"
+adapter_save_path = "./llama_mental_health_adapter_test"
 model.save_pretrained(adapter_save_path)
 tokenizer.save_pretrained(adapter_save_path)
 
