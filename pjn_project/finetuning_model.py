@@ -4,7 +4,7 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
 import numpy as np
-from trl import SFTTrainer, SFTConfig, DPOTrainer, DPOConfig  # Импортируем SFTTrainer, SFTConfig, DPOTrainer и DPOConfig
+from trl import SFTTrainer, SFTConfig, DPOTrainer, DPOConfig
 
 # Установка seed для воспроизводимости
 random.seed(42)
@@ -82,29 +82,29 @@ ref_model = get_peft_model(ref_model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
-    learning_rate=3e-5,  # Увеличение скорости обучения для более быстрого обучения
-    per_device_train_batch_size=32,  # Оставляем размер батча на прежнем уровне
-    per_device_eval_batch_size=32,
-    gradient_accumulation_steps=4,  # Уменьшение количества шагов накопления градиентов для более частого обновления параметров
-    lr_scheduler_type="cosine",
-    num_train_epochs=50,  # Уменьшение количества эпох для ускорения обучения
+    learning_rate=5e-5,  # Увеличение скорости обучения для более быстрого обучения
+    per_device_train_batch_size=16,  # Уменьшение размера батча для уменьшения нагрузки на память
+    per_device_eval_batch_size=16,
+    gradient_accumulation_steps=8,  # Увеличение количества шагов накопления градиентов для более стабильного обучения
+    lr_scheduler_type="linear",
+    num_train_epochs=10,  # Уменьшение количества эпох для ускорения обучения
     logging_strategy="steps",
     save_strategy="steps",
-    eval_strategy="steps",  # Используем eval_strategy вместо evaluation_strategy
-    logging_steps=5,  # Увеличение частоты логирования для более частого мониторинга
-    eval_steps=5,
-    save_steps=5,
-    warmup_steps=50,  # Уменьшение количества шагов разогрева для быстрой адаптации
+    eval_strategy="steps",
+    logging_steps=10,  # Увеличение частоты логирования для более частого мониторинга
+    eval_steps=10,
+    save_steps=10,
+    warmup_steps=100,  # Увеличение количества шагов разогрева для более плавной адаптации
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
     weight_decay=0.01,
-    save_total_limit=5,  # Уменьшение количества сохраняемых моделей
-    output_dir="./llama_results_test",
+    save_total_limit=3,  # Уменьшение количества сохраняемых моделей
+    output_dir="./llama_results_optimized",
     overwrite_output_dir=True,
     logging_dir="./logs",
     seed=42,
-    dataloader_num_workers=24,  # Увеличение количества рабочих потоков для ускорения загрузки данных
+    dataloader_num_workers=4,  # Уменьшение количества рабочих потоков для уменьшения нагрузки на систему
     report_to=[],
     dataloader_pin_memory=True
 )
@@ -135,28 +135,27 @@ sft_trainer.train()
 
 # Шаг 10: Настройка гиперпараметров обучения для DPOTrainer
 dpo_training_args = DPOConfig(
-    output_dir="./dpo_results_test",  # Указание директории для сохранения результатов
-    learning_rate=3e-5,  # Скорость обучения, аналогичная SFTConfig
-    per_device_train_batch_size=64,  # Размер батча, аналогичный SFTConfig
-    per_device_eval_batch_size=64,
-    gradient_accumulation_steps=2,  # Количество шагов накопления градиентов, аналогичное SFTConfig
-    lr_scheduler_type="cosine",
-    num_train_epochs=100,  # Количество эпох, аналогичное SFTConfig
+    output_dir="./dpo_results_optimized",
+    learning_rate=5e-5,
+    per_device_train_batch_size=32,
+    per_device_eval_batch_size=32,
+    gradient_accumulation_steps=4,
+    lr_scheduler_type="linear",
+    num_train_epochs=20,
     logging_strategy="steps",
     save_strategy="steps",
-    eval_strategy="steps",  # Используем eval_strategy вместо evaluation_strategy
-    logging_steps=5,  # Частота логирования, аналогичная SFTConfig
-    eval_steps=5,
-    save_steps=5,
-    warmup_steps=50,  # Количество шагов разогрева, аналогичное SFTConfig
+    eval_strategy="steps",
+    logging_steps=10,
+    eval_steps=10,
+    save_steps=10,
+    warmup_steps=100,
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
-    weight_decay=0.01,  # Весовая декомпозиция, аналогичная SFTConfig
+    weight_decay=0.01,
     neftune_noise_alpha=5,
     remove_unused_columns=False,
 )
-
 
 # Шаг 11: Создание DPOTrainer с использованием processing_class вместо tokenizer
 dpo_trainer = DPOTrainer(
