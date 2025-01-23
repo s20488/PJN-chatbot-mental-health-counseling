@@ -53,9 +53,9 @@ references = [
     ["One thing that comes to mind is making a list of some things that happen each day. It could be that there are things that are affecting how upset you are, but because so many other things are going on, you may not notice. Another idea to try is to keep a list for a month of one good thing that happened each day. This way, when you're having a rough day, you have a list to think of and take a look at. Are you eating and sleeping in ways that are typical for you (typically at least two meals per day and roughly 8 hours of sleep that night (may be different depending on your age)? These two ideas are closely related to changes in your mood. From where do you have support? Friends or family? Can you take 5 or 10 minutes per day to do something that you enjoy? If you think back to the last time that you felt \"content,\" what was contributing to that? Another possibility is to try to be mindful of things that you do every day. For example, rather than eating a turkey sandwich as fast as possible on your lunch break, consider actually tasting it and enjoying it. Also consider giving yourself praise for doing something well. For example, when you finish your paperwork, take a moment to notice that and maybe reward yourself by checking your e-mail, reading five pages of a book, or something else that can be done quickly before you get back to your next task."],
     ["It's important to take a look inside and see what's going on with you to cause you to have these feelings. Please contact us in whatever way is most comfortable for you and we can get you set up with someone who will help you figure out this space in your life."]
 ]
-predictions = [generated_text.split()]
-bleu_score = bleu_metric.compute(predictions=predictions, references=references)
-print(f"BLEU score: {bleu_score['score']}")
+predictions = [generated_text]
+bleu_score = bleu_metric.compute(predictions=predictions, references=[references])
+print(f"BLEU score: {bleu_score['bleu']}")
 
 # Метрика Perplexity
 def calculate_perplexity(text):
@@ -101,7 +101,6 @@ dialog_quality_metrics = {
 }
 print(f"Dialog Quality Metrics: {dialog_quality_metrics}")
 
-
 # A/B тестирование (пример: сравнение двух моделей)
 def ab_test(model_a, model_b, prompt):
     pipe_a = pipeline(task="text-generation", model=model_a, tokenizer=tokenizer, max_length=200)
@@ -111,7 +110,6 @@ def ab_test(model_a, model_b, prompt):
     result_b = pipe_b(f"<s>[INST] {prompt} [/INST]")
 
     return result_a[0]["generated_text"], result_b[0]["generated_text"]
-
 
 # Пример использования A/B тестирования
 model_a_name = "unsloth/Llama-3.2-1B-Instruct"
