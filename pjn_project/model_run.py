@@ -116,7 +116,7 @@ def ab_test(model_a, model_b, prompt):
 
 
 # Пример использования A/B тестирования
-model_a_name = "Llama-3.2-1B-Instruct"
+model_a_name = "Llama-3.2-1B-Instruct-finetune-qlora"
 model_b_name = "llama-68m-finetune-qlora"
 model_a = AutoModelForCausalLM.from_pretrained(model_a_name, torch_dtype=torch.float16).to(device_map[""])
 model_b = PeftModel.from_pretrained(base_model, new_model).merge_and_unload().to(device_map[""])
