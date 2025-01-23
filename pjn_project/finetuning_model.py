@@ -4,7 +4,7 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
 import numpy as np
-from trl import SFTTrainer, SFTConfig, DPOTrainer, DPOConfig
+from trl import SFTTrainer, SFTConfig
 
 # Установка seed для воспроизводимости
 random.seed(42)
@@ -33,21 +33,8 @@ if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = 'right'
 
-# Шаг 3: Автоматический расчет max_length
-def calculate_max_length(dataset, tokenizer, fields):
-    """
-    Рассчитывает максимальную длину токенов для указанных полей в датасете.
-    """
-    max_lengths = {}
-    for field in fields:
-        lengths = [len(tokenizer(example[field], truncation=False)["input_ids"]) for example in dataset]
-        max_lengths[field] = int(np.percentile(lengths, 95))  # 95-й перцентиль
-    return max_lengths
-
-max_lengths = calculate_max_length(train_dataset, tokenizer, ["Context", "Response"])
-max_length = max_lengths["Context"] + max_lengths["Response"] + 10  # С учетом токенов формата
-
-print(f"Рассчитанная длина max_length: {max_length}")
+# Шаг 3: Установка фиксированного max_length
+max_length = 1000  # Фиксированная длина для всех примеров (настраивается вручную, если длины больше или меньше)
 
 # Шаг 4: Предобработка данных
 def preprocess_data_with_format(example):
@@ -59,12 +46,18 @@ def preprocess_data_with_format(example):
         f"<|im_start|>user\n{example['Context']}<|im_end|>\n"
         f"<|im_start|>assistant\n{example['Response']}<|im_end|>"
     )
-    tokenized = tokenizer(formatted_prompt, truncation=True, padding="max_length", max_length=max_length)
+    tokenized = tokenizer(
+        formatted_prompt,
+        truncation=True,
+        padding="max_length",  # Устанавливаем фиксированную длину
+        max_length=max_length
+    )
     return {
         "input_ids": tokenized["input_ids"],
-        "labels": tokenized["input_ids"],
+        "labels": tokenized["input_ids"],  # Совпадает с input_ids для CausalLM
     }
 
+# Обработка тренировочного и валидационного датасетов
 train_dataset = train_dataset.map(preprocess_data_with_format, batched=True)
 validation_dataset = validation_dataset.map(preprocess_data_with_format, batched=True)
 
@@ -87,20 +80,12 @@ peft_config = LoraConfig(
 
 model = get_peft_model(model, peft_config)
 
-# Создание копии модели для ref_model
-ref_model = AutoModelForCausalLM.from_pretrained(
-    base_model,
-    device_map="auto",
-    torch_dtype=torch.float16
-)
-ref_model = get_peft_model(ref_model, peft_config)
-
 # Шаг 7: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
     learning_rate=1e-5,
-    per_device_train_batch_size=32,  # Уменьшено для экономии памяти
+    per_device_train_batch_size=32,
     per_device_eval_batch_size=32,
-    gradient_accumulation_steps=4,  # Увеличен шаг аккумуляции
+    gradient_accumulation_steps=4,
     lr_scheduler_type="linear",
     num_train_epochs=5,
     logging_strategy="steps",
@@ -140,7 +125,7 @@ sft_trainer = SFTTrainer(
     data_collator=data_collator,
     callbacks=[
         EarlyStoppingCallback(
-            early_stopping_patience=3  # Уменьшено для более быстрой остановки
+            early_stopping_patience=3
         ),
     ],
 )
