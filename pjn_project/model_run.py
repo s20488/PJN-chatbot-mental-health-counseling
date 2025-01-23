@@ -65,21 +65,13 @@ generated_text = result[0]["generated_text"]
 print(f"Generated Text: {generated_text}")
 
 # Метрика BLEU
-def calculate_bleu(reference, candidate):
-    reference_tokens = [reference.split()]
-    candidate_tokens = candidate.split()
-    return sentence_bleu(reference_tokens, candidate_tokens)
-
-
 def calculate_bleu(references, candidates):
     reference_tokens = [[ref.split()] for ref in references]
     candidate_tokens = [cand.split() for cand in candidates]
-    return corpus_bleu(reference_tokens, candidate_tokens)
+    smoothing_function = SmoothingFunction().method1
+    return corpus_bleu(reference_tokens, candidate_tokens, smoothing_function=smoothing_function)
 
 file_path = 'combined_dataset.json'
-result = [{"generated_text": "Your generated response here"}]
-generated_text = result[0]["generated_text"]
-
 with open(file_path, 'r', encoding='utf-8') as file:
     data = [json.loads(line) for line in file]
 
