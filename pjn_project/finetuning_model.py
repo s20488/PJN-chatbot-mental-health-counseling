@@ -77,9 +77,6 @@ save_steps = 0
 # Log at every X updates steps
 logging_steps = 50
 
-# maximum sequence length to use
-max_seq_length = None
-
 packing = False
 
 # load the entire model on the GPU
@@ -164,7 +161,6 @@ trainer = SFTTrainer(
     model=model,
     train_dataset=dataset,
     peft_config=peft_config,
-    max_seq_length=max_seq_length,
     args=training_arguments,
     processing_class=tokenizer,
     packing=packing,
