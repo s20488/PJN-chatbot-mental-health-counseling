@@ -24,11 +24,11 @@ sia = SentimentIntensityAnalyzer()
 # Загружаем spaCy модель
 nlp = spacy.load("en_core_web_sm")
 
-model_name = "NousResearch/Llama-2-7b-chat-hf"
-new_model = "Llama-2-7b-chat-finetune-qlora"
+# model_name = "NousResearch/Llama-2-7b-chat-hf"
+# new_model = "Llama-2-7b-chat-finetune-qlora"
 
-# model_name = "unsloth/Llama-3.2-1B-Instruct"
-# new_model = "Llama-3.2-1B-Instruct-finetune-qlora"
+model_name = "unsloth/Llama-3.2-1B-Instruct"
+new_model = "Llama-3.2-1B-Instruct-finetune-qlora"
 #
 # model_name = "JackFram/llama-68m"
 # new_model = "llama-68m-finetune-qlora"
@@ -154,5 +154,3 @@ metrics_results = {
 
 with open(results_file_path, 'w', encoding='utf-8') as results_file:
     json.dump(metrics_results, results_file, ensure_ascii=False, indent=4)
-
-print(f"Metrics results saved to {results_file_path}")
