@@ -8,7 +8,6 @@ from transformers import (
     logging,
 )
 from peft import PeftModel
-import evaluate
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 import spacy
