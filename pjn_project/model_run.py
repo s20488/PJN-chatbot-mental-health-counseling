@@ -7,15 +7,20 @@ from transformers import (
 )
 from peft import PeftModel
 import evaluate
+import nltk
+from nltk.sentiment import SentimentIntensityAnalyzer
 
-model_name = "NousResearch/Llama-2-7b-chat-hf"
-new_model = "Llama-2-7b-chat-finetune-qlora"
+# Загружаем необходимые ресурсы для VADER
+nltk.download('vader_lexicon')
 
-# model_name = "unsloth/Llama-3.2-1B-Instruct"
-# new_model = "Llama-3.2-1B-Instruct-finetune-qlora"
+# Инициализируем анализатор VADER
+sia = SentimentIntensityAnalyzer()
 
-# model_name = "JackFram/llama-68m"
-# new_model = "llama-68m-finetune-qlora"
+# model_name = "NousResearch/Llama-2-7b-chat-hf"
+# new_model = "Llama-2-7b-chat-finetune-qlora"
+
+model_name = "JackFram/llama-68m"
+new_model = "llama-68m-finetune-qlora"
 
 device_map = {"": 0}
 
@@ -42,6 +47,7 @@ tokenizer.padding_side = "right"
 prompt = "How can I get to a place where I can be content from day to day?"
 pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, temperature=0.6, top_p=0.85, no_repeat_ngram_size=2, eos_token_id=tokenizer.eos_token_id)
 result = pipe(f"<s>[INST] {prompt} [/INST]")
+
 generated_text = result[0]["generated_text"]
 print(f"Generated Text: {generated_text}")
 
@@ -84,41 +90,26 @@ def calculate_perplexity(text):
 perplexity_score = calculate_perplexity(generated_text)
 print(f"Perplexity: {perplexity_score}")
 
-# Метрики эмпатии (пример: использование эмпатичных слов)
-empathy_words = [
-    "understand", "feel", "sorry", "empathize", "compassion", "care",
-    "concern", "sympathy", "empathy", "support", "listen", "acknowledge",
-    "appreciate", "comfort", "help", "kindness", "patience", "respect",
-    "sensitive", "thoughtful"
-]
-empathy_score = sum(word in generated_text.lower() for word in empathy_words) / len(empathy_words)
-print(f"Empathy Score: {empathy_score}")
+# Используем VADER для оценки эмпатии
+def vader_empathy_score(text):
+    sentiment = sia.polarity_scores(text)
+    return sentiment['compound']  # Эмпатия будет оценена как общий композитный балл
 
-# Метрики качества диалога (пример: длина ответа и уникальность слов)
+empathy_score = vader_empathy_score(generated_text)
+print(f"Empathy Score (VADER): {empathy_score}")
+
+# Метрики качества диалога (например, длина ответа и уникальность слов)
 dialog_quality_metrics = {
     "length": len(generated_text.split()),
     "unique_words": len(set(generated_text.split()))
 }
 print(f"Dialog Quality Metrics: {dialog_quality_metrics}")
 
-
-# A/B тестирование (пример: сравнение двух моделей)
-def ab_test(model_a, model_b, prompt):
-    pipe_a = pipeline(task="text-generation", model=model_a, tokenizer=tokenizer, max_length=200)
-    pipe_b = pipeline(task="text-generation", model=model_b, tokenizer=tokenizer, max_length=200)
-
-    result_a = pipe_a(f"<s>[INST] {prompt} [/INST]")
-    result_b = pipe_b(f"<s>[INST] {prompt} [/INST]")
-
-    return result_a[0]["generated_text"], result_b[0]["generated_text"]
-
-
 def relevance_score(text, prompt):
     # Считаем релевантность текста по ключевым словам, которые должны быть в ответе
     keywords = ["content", "day", "place", "happiness", "feel", "calm"]
     score = sum(1 for word in keywords if word in text.lower()) / len(keywords)
     return score
-
 
 relevance = relevance_score(generated_text, prompt)
 print(f"Relevance Score: {relevance}")
