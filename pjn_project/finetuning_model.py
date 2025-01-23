@@ -4,7 +4,7 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
 import numpy as np
-from trl import SFTTrainer  # Импортируем SFTTrainer
+from trl import SFTTrainer, SFTConfig  # Импортируем SFTConfig
 
 # Установка seed для воспроизводимости
 random.seed(42)
@@ -69,7 +69,7 @@ peft_config = LoraConfig(
 model = get_peft_model(model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения
-training_args = TrainingArguments(
+training_args = SFTConfig(
     learning_rate=2e-6,
     per_device_train_batch_size=1,
     per_device_eval_batch_size=1,
@@ -107,7 +107,6 @@ data_collator = DataCollatorForLanguageModeling(
 trainer = SFTTrainer(
     model=model,
     train_dataset=train_dataset,
-    dataset_text_field="text",
     eval_dataset=validation_dataset,
     max_seq_length=2048,
     packing=True,
