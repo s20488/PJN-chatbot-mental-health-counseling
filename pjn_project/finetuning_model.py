@@ -33,34 +33,49 @@ if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = 'right'
 
-# Шаг 3: Предобработка данных
-def preprocess_data(example):
+# Шаг 3: Автоматический расчет max_length
+def calculate_max_length(dataset, tokenizer, fields):
+    """
+    Рассчитывает максимальную длину токенов для указанных полей в датасете.
+    """
+    max_lengths = {}
+    for field in fields:
+        lengths = [len(tokenizer(example[field], truncation=False)["input_ids"]) for example in dataset]
+        max_lengths[field] = int(np.percentile(lengths, 95))  # 95-й перцентиль
+    return max_lengths
+
+max_lengths = calculate_max_length(train_dataset, tokenizer, ["Context", "Response"])
+max_length = max_lengths["Context"] + max_lengths["Response"] + 10  # С учетом токенов формата
+
+print(f"Рассчитанная длина max_length: {max_length}")
+
+# Шаг 4: Предобработка данных
+def preprocess_data_with_format(example):
+    """
+    Преобразует каждый пример в формат подсказок с токенами <|im_start|> и <|im_end|>.
+    """
+    formatted_prompt = (
+        f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
+        f"<|im_start|>user\n{example['Context']}<|im_end|>\n"
+        f"<|im_start|>assistant\n{example['Response']}<|im_end|>"
+    )
+    tokenized = tokenizer(formatted_prompt, truncation=True, padding="max_length", max_length=max_length)
     return {
-        "input_ids": tokenizer(
-            example["Context"], truncation=True, padding="max_length", max_length=512
-        )["input_ids"],
-        "labels": tokenizer(
-            example["Response"], truncation=True, padding="max_length", max_length=512
-        )["input_ids"],
-        "prompt": example["Context"],
-        "chosen": example["Response"],
-        "rejected": example["Response"]  # Замените на реальные данные
+        "input_ids": tokenized["input_ids"],
+        "labels": tokenized["input_ids"],
     }
 
-train_dataset = train_dataset.map(preprocess_data, batched=True)
-validation_dataset = validation_dataset.map(preprocess_data, batched=True)
+train_dataset = train_dataset.map(preprocess_data_with_format, batched=True)
+validation_dataset = validation_dataset.map(preprocess_data_with_format, batched=True)
 
-train_dataset = train_dataset.remove_columns(["Context", "Response"])
-validation_dataset = validation_dataset.remove_columns(["Context", "Response"])
-
-# Шаг 4: Загрузка модели
+# Шаг 5: Загрузка модели
 model = AutoModelForCausalLM.from_pretrained(
     base_model,
     device_map="auto",
     torch_dtype=torch.float16
 )
 
-# Шаг 5: Настройка PEFT (LoRA)
+# Шаг 6: Настройка PEFT (LoRA)
 peft_config = LoraConfig(
     r=8,
     lora_alpha=16,
@@ -80,26 +95,26 @@ ref_model = AutoModelForCausalLM.from_pretrained(
 )
 ref_model = get_peft_model(ref_model, peft_config)
 
-# Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
+# Шаг 7: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
-    learning_rate=1e-5,  # Уменьшение скорости обучения
-    per_device_train_batch_size=128,
-    per_device_eval_batch_size=128,
-    gradient_accumulation_steps=1,
+    learning_rate=1e-5,
+    per_device_train_batch_size=32,  # Уменьшено для экономии памяти
+    per_device_eval_batch_size=32,
+    gradient_accumulation_steps=4,  # Увеличен шаг аккумуляции
     lr_scheduler_type="linear",
-    num_train_epochs=100,
+    num_train_epochs=5,
     logging_strategy="steps",
     save_strategy="steps",
     eval_strategy="steps",
-    logging_steps=10,
-    eval_steps=10,
-    save_steps=10,
-    warmup_steps=200,  # Увеличение количества шагов разогрева
+    logging_steps=50,
+    eval_steps=50,
+    save_steps=50,
+    warmup_steps=100,
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
-    weight_decay=0.1,  # Увеличение регуляризации
-    save_total_limit=3,
+    weight_decay=0.01,
+    save_total_limit=2,
     output_dir="./llama_results_optimized",
     overwrite_output_dir=True,
     logging_dir="./logs",
@@ -107,16 +122,16 @@ sft_training_args = SFTConfig(
     dataloader_num_workers=4,
     report_to=[],
     dataloader_pin_memory=True,
-    fp16=True  # Включение смешанной точности
+    fp16=True
 )
 
-# Шаг 7: Создание DataCollator
+# Шаг 8: Создание DataCollator
 data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
     mlm=False
 )
 
-# Шаг 8: Создание SFTTrainer
+# Шаг 9: Создание SFTTrainer
 sft_trainer = SFTTrainer(
     model=model,
     train_dataset=train_dataset,
@@ -125,56 +140,15 @@ sft_trainer = SFTTrainer(
     data_collator=data_collator,
     callbacks=[
         EarlyStoppingCallback(
-            early_stopping_patience=10
+            early_stopping_patience=3  # Уменьшено для более быстрой остановки
         ),
     ],
 )
 
-# Шаг 9: Обучение модели с помощью SFTTrainer
+# Шаг 10: Обучение модели с помощью SFTTrainer
 sft_trainer.train()
 
-# Шаг 10: Настройка гиперпараметров обучения для DPOTrainer
-dpo_training_args = DPOConfig(
-    output_dir="./dpo_results_optimized",
-    per_device_train_batch_size=1,
-    per_device_eval_batch_size=1,
-    gradient_accumulation_steps=1,
-    lr_scheduler_type="cosine",
-    num_train_epochs=1,
-    logging_strategy="steps",
-    save_strategy="steps",
-    evaluation_strategy="steps",
-    logging_steps=1,
-    eval_steps=1,
-    save_steps=1,
-    warmup_steps=0,
-    load_best_model_at_end=True,
-    metric_for_best_model="eval_loss",
-    greater_is_better=False,
-    weight_decay=0.0,
-    neftune_noise_alpha=5,
-    remove_unused_columns=False,
-)
-
-# Шаг 11: Создание DPOTrainer с использованием processing_class вместо tokenizer
-dpo_trainer = DPOTrainer(
-    model=model,
-    ref_model=ref_model,  # Используем копию модели для ref_model
-    args=dpo_training_args,
-    processing_class=tokenizer,  # Используем processing_class вместо tokenizer
-    train_dataset=train_dataset,
-    eval_dataset=validation_dataset,
-    callbacks=[
-        EarlyStoppingCallback(
-            early_stopping_patience=10
-        ),
-    ],
-)
-
-# Шаг 12: Обучение модели с помощью DPOTrainer
-dpo_trainer.train()
-
-# Шаг 13: Сохранение дообученного адаптера
+# Шаг 11: Сохранение дообученного адаптера
 adapter_save_path = "./llama_mental_health_adapter_test"
 model.save_pretrained(adapter_save_path)
 tokenizer.save_pretrained(adapter_save_path)
