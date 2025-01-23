@@ -9,12 +9,16 @@ from peft import PeftModel
 import evaluate
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
+import spacy
 
 # Загружаем необходимые ресурсы для VADER
 nltk.download('vader_lexicon')
 
 # Инициализируем анализатор VADER
 sia = SentimentIntensityAnalyzer()
+
+# Загружаем spaCy модель
+nlp = spacy.load("en_core_web_sm")
 
 # model_name = "NousResearch/Llama-2-7b-chat-hf"
 # new_model = "Llama-2-7b-chat-finetune-qlora"
@@ -45,7 +49,8 @@ tokenizer.padding_side = "right"
 
 # Run text generation pipeline with our next model
 prompt = "How can I get to a place where I can be content from day to day?"
-pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, temperature=0.6, top_p=0.85, no_repeat_ngram_size=2, eos_token_id=tokenizer.eos_token_id)
+pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, temperature=0.6, top_p=0.85,
+                no_repeat_ngram_size=2, eos_token_id=tokenizer.eos_token_id)
 result = pipe(f"<s>[INST] {prompt} [/INST]")
 
 generated_text = result[0]["generated_text"]
@@ -54,13 +59,17 @@ print(f"Generated Text: {generated_text}")
 # Метрика BLEU
 bleu_metric = evaluate.load("bleu")
 references = [
-    ["Your question is a fascinating one! As humans we have the ability to reflect on situations in our lives. Even if nothing currently goes on in a particular moment, it’s possible you’re reflecting on a serious or upsetting matter. And, our emotions linger within us. Just because a particular moment feels calm, inside your feelings may be the sense of a strong unsettled emotion from the recent past. Good for you to be aware of your own sensitivity to living with awareness of your moods and thoughts."],
-    ["One thing that comes to mind is making a list of some things that happen each day. It could be that there are things that are affecting how upset you are, but because so many other things are going on, you may not notice. Another idea to try is to keep a list for a month of one good thing that happened each day. This way, when you're having a rough day, you have a list to think of and take a look at. Are you eating and sleeping in ways that are typical for you (typically at least two meals per day and roughly 8 hours of sleep that night (may be different depending on your age)? These two ideas are closely related to changes in your mood. From where do you have support? Friends or family? Can you take 5 or 10 minutes per day to do something that you enjoy? If you think back to the last time that you felt \"content,\" what was contributing to that? Another possibility is to try to be mindful of things that you do every day. For example, rather than eating a turkey sandwich as fast as possible on your lunch break, consider actually tasting it and enjoying it. Also consider giving yourself praise for doing something well. For example, when you finish your paperwork, take a moment to notice that and maybe reward yourself by checking your e-mail, reading five pages of a book, or something else that can be done quickly before you get back to your next task."],
-    ["It's important to take a look inside and see what's going on with you to cause you to have these feelings. Please contact us in whatever way is most comfortable for you and we can get you set up with someone who will help you figure out this space in your life."]
+    [
+        "Your question is a fascinating one! As humans we have the ability to reflect on situations in our lives. Even if nothing currently goes on in a particular moment, it’s possible you’re reflecting on a serious or upsetting matter. And, our emotions linger within us. Just because a particular moment feels calm, inside your feelings may be the sense of a strong unsettled emotion from the recent past. Good for you to be aware of your own sensitivity to living with awareness of your moods and thoughts."],
+    [
+        "One thing that comes to mind is making a list of some things that happen each day. It could be that there are things that are affecting how upset you are, but because so many other things are going on, you may not notice. Another idea to try is to keep a list for a month of one good thing that happened each day. This way, when you're having a rough day, you have a list to think of and take a look at. Are you eating and sleeping in ways that are typical for you (typically at least two meals per day and roughly 8 hours of sleep that night (may be different depending on your age)? These two ideas are closely related to changes in your mood. From where do you have support? Friends or family? Can you take 5 or 10 minutes per day to do something that you enjoy? If you think back to the last time that you felt \"content,\" what was contributing to that? Another possibility is to try to be mindful of things that you do every day. For example, rather than eating a turkey sandwich as fast as possible on your lunch break, consider actually tasting it and enjoying it. Also consider giving yourself praise for doing something well. For example, when you finish your paperwork, take a moment to notice that and maybe reward yourself by checking your e-mail, reading five pages of a book, or something else that can be done quickly before you get back to your next task."],
+    [
+        "It's important to take a look inside and see what's going on with you to cause you to have these feelings. Please contact us in whatever way is most comfortable for you and we can get you set up with someone who will help you figure out this space in your life."]
 ]
 predictions = [generated_text]
 bleu_score = bleu_metric.compute(predictions=predictions, references=[references])
 print(f"BLEU score: {bleu_score['bleu']}")
+
 
 # Метрика Perplexity
 def calculate_perplexity(text):
@@ -90,13 +99,27 @@ def calculate_perplexity(text):
 perplexity_score = calculate_perplexity(generated_text)
 print(f"Perplexity: {perplexity_score}")
 
+
 # Используем VADER для оценки эмпатии
 def vader_empathy_score(text):
     sentiment = sia.polarity_scores(text)
     return sentiment['compound']  # Эмпатия будет оценена как общий композитный балл
 
+
 empathy_score = vader_empathy_score(generated_text)
 print(f"Empathy Score (VADER): {empathy_score}")
+
+
+# Извлечение ключевых слов с помощью spaCy
+def extract_keywords(text):
+    doc = nlp(text)
+    # Извлекаем существительные как ключевые слова
+    keywords = [token.text for token in doc if token.pos_ == "NOUN"]
+    return keywords
+
+
+keywords = extract_keywords(generated_text)
+print(f"Extracted Keywords: {keywords}")
 
 # Метрики качества диалога (например, длина ответа и уникальность слов)
 dialog_quality_metrics = {
@@ -105,11 +128,17 @@ dialog_quality_metrics = {
 }
 print(f"Dialog Quality Metrics: {dialog_quality_metrics}")
 
+
+# Обновленная метрика релевантности с учетом извлеченных ключевых слов
 def relevance_score(text, prompt):
-    # Считаем релевантность текста по ключевым словам, которые должны быть в ответе
-    keywords = ["content", "day", "place", "happiness", "feel", "calm"]
-    score = sum(1 for word in keywords if word in text.lower()) / len(keywords)
+    # Извлекаем ключевые слова из текста и запроса
+    prompt_keywords = extract_keywords(prompt)
+    text_keywords = extract_keywords(text)
+
+    # Считаем совпадения
+    score = sum(1 for word in prompt_keywords if word in text_keywords) / len(prompt_keywords)
     return score
+
 
 relevance = relevance_score(generated_text, prompt)
 print(f"Relevance Score: {relevance}")
