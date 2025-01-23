@@ -140,3 +140,19 @@ def relevance_score(text, prompt):
 
 relevance = relevance_score(generated_text, prompt)
 print(f"Relevance Score: {relevance}")
+
+# Запись результатов метрик в файл с названием модели
+results_file_path = f'metrics-results-{new_model}.json'
+metrics_results = {
+    "model_name": new_model,
+    "bleu_score": bleu_score,
+    "perplexity_score": perplexity_score,
+    "empathy_score": empathy_score,
+    "dialog_quality_metrics": dialog_quality_metrics,
+    "relevance_score": relevance
+}
+
+with open(results_file_path, 'w', encoding='utf-8') as results_file:
+    json.dump(metrics_results, results_file, ensure_ascii=False, indent=4)
+
+print(f"Metrics results saved to {results_file_path}")

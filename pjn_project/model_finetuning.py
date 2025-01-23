@@ -28,7 +28,7 @@ bnb_4bit_quant_type = "nf4"
 use_nested_quant = False
 
 # output directory where the model predictions and checkpoints will be stored
-output_dir = "./results1"
+output_dir = f"./results-{new_model}"
 
 # number of training epochs
 num_train_epochs = 5
