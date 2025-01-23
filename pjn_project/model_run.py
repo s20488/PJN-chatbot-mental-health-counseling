@@ -82,6 +82,7 @@ def calculate_perplexity(text):
     ppl = torch.exp(torch.stack(lls).sum() / end_loc)
     return ppl.item()
 
+
 perplexity_score = calculate_perplexity(generated_text)
 print(f"Perplexity: {perplexity_score}")
 
@@ -102,6 +103,7 @@ dialog_quality_metrics = {
 }
 print(f"Dialog Quality Metrics: {dialog_quality_metrics}")
 
+
 # A/B тестирование (пример: сравнение двух моделей)
 def ab_test(model_a, model_b, prompt):
     pipe_a = pipeline(task="text-generation", model=model_a, tokenizer=tokenizer, max_length=200)
@@ -112,8 +114,9 @@ def ab_test(model_a, model_b, prompt):
 
     return result_a[0]["generated_text"], result_b[0]["generated_text"]
 
+
 # Пример использования A/B тестирования
-model_a_name = "unsloth/Llama-3.2-1B-Instruct"
+model_a_name = "Llama-3.2-1B-Instruct"
 model_b_name = "llama-68m-finetune-qlora"
 model_a = AutoModelForCausalLM.from_pretrained(model_a_name, torch_dtype=torch.float16).to(device_map[""])
 model_b = PeftModel.from_pretrained(base_model, new_model).merge_and_unload().to(device_map[""])
