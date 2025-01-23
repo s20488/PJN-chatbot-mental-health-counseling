@@ -82,7 +82,7 @@ ref_model = get_peft_model(ref_model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
-    learning_rate=3e-5,  # Уменьшение скорости обучения
+    learning_rate=1e-5,  # Уменьшение скорости обучения
     per_device_train_batch_size=128,
     per_device_eval_batch_size=128,
     gradient_accumulation_steps=1,
@@ -94,7 +94,7 @@ sft_training_args = SFTConfig(
     logging_steps=10,
     eval_steps=10,
     save_steps=10,
-    warmup_steps=100,  # Увеличение количества шагов разогрева
+    warmup_steps=200,  # Увеличение количества шагов разогрева
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
