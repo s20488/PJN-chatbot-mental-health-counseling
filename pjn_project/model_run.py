@@ -7,8 +7,8 @@ from transformers import (
 )
 from peft import PeftModel
 
-model_name = "NousResearch/Llama-2-7b-chat-hf"
-new_model = "Llama-2-7b-chat-finetune-qlora"
+model_name = "unsloth/Llama-3.2-1B-Instruct"
+new_model = "Llama-3.2-1B-Instruct-finetune-qlora"
 
 device_map = {"": 0}
 
