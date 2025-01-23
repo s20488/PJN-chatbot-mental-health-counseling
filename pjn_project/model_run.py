@@ -109,18 +109,6 @@ def vader_empathy_score(text):
 empathy_score = vader_empathy_score(generated_text)
 print(f"Empathy Score (VADER): {empathy_score}")
 
-
-# Извлечение ключевых слов с помощью spaCy
-def extract_keywords(text):
-    doc = nlp(text)
-    # Извлекаем существительные как ключевые слова
-    keywords = [token.text for token in doc if token.pos_ == "NOUN"]
-    return keywords
-
-
-keywords = extract_keywords(generated_text)
-print(f"Extracted Keywords: {keywords}")
-
 # Метрики качества диалога (например, длина ответа и уникальность слов)
 dialog_quality_metrics = {
     "length": len(generated_text.split()),
@@ -130,6 +118,13 @@ print(f"Dialog Quality Metrics: {dialog_quality_metrics}")
 
 
 # Обновленная метрика релевантности с учетом извлеченных ключевых слов
+
+def extract_keywords(text):
+    doc = nlp(text)
+    # Извлекаем существительные как ключевые слова
+    keywords = [token.text for token in doc if token.pos_ == "NOUN"]
+    return keywords
+
 def relevance_score(text, prompt):
     # Извлекаем ключевые слова из текста и запроса
     prompt_keywords = extract_keywords(prompt)
