@@ -8,6 +8,11 @@ from transformers import (
 )
 from peft import LoraConfig
 from trl import SFTTrainer
+import logging
+
+# Логирование
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # model_name = "NousResearch/Llama-2-7b-chat-hf"
 # new_model = "Llama-2-7b-chat-finetune-qlora"
@@ -87,6 +92,14 @@ device_map = {"": 0}
 # Load dataset from combined_dataset.json
 dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
 
+# Разделение на тренировочную, валидационную и тестовую выборки
+train_test_split = dataset.train_test_split(test_size=0.1)
+train_val_split = train_test_split['train'].train_test_split(test_size=0.1)
+
+train_dataset = train_val_split['train']
+val_dataset = train_val_split['test']
+test_dataset = train_test_split['test']
+
 
 # Preprocess dataset to combine `Context` and `Response`
 def preprocess_function(examples):
@@ -95,7 +108,9 @@ def preprocess_function(examples):
     }
 
 
-dataset = dataset.map(preprocess_function)
+train_dataset = train_dataset.map(preprocess_function)
+val_dataset = val_dataset.map(preprocess_function)
+test_dataset = test_dataset.map(preprocess_function)
 
 # Load tokenizer and model with QLoRA config
 compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
@@ -111,9 +126,9 @@ bnb_config = BitsAndBytesConfig(
 if compute_dtype == torch.float16 and use_4bit:
     major, _ = torch.cuda.get_device_capability()
     if major >= 8:
-        print("=" * 80)
-        print("Your GPU supports bfloat16, you are getting accelerate training with bf16= True")
-        print("=" * 80)
+        logger.info("=" * 80)
+        logger.info("Your GPU supports bfloat16, you are getting accelerate training with bf16= True")
+        logger.info("=" * 80)
 
 # Load base model
 model = AutoModelForCausalLM.from_pretrained(
@@ -158,12 +173,13 @@ training_arguments = TrainingArguments(
     warmup_ratio=warmup_ratio,
     group_by_length=group_by_length,
     max_steps=max_steps,
+    logging_dir='./logs',
 )
 
 # SFT Trainer
 trainer = SFTTrainer(
     model=model,
-    train_dataset=dataset,
+    train_dataset=train_dataset,
     peft_config=peft_config,
     args=training_arguments,
     processing_class=tokenizer,
