@@ -73,7 +73,6 @@ training_args = SFTConfig(
     learning_rate=2e-6,
     per_device_train_batch_size=128,
     per_device_eval_batch_size=128,
-    gradient_accumulation_steps=0,
     lr_scheduler_type="cosine",
     num_train_epochs=200,
     logging_strategy="steps",
