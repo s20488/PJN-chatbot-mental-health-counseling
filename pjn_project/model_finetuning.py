@@ -16,7 +16,7 @@ from trl import SFTTrainer
 # new_model = "Llama-3.2-1B-Instruct-finetune-qlora"
 
 model_name = "JackFram/llama-68m"
-new_model = "JackFram/llama-68m-finetune-qlora"
+new_model = "llama-68m-finetune-qlora"
 
 lora_r = 64  # lora attention dimension/ rank
 lora_alpha = 16  # lora scaling parameter
