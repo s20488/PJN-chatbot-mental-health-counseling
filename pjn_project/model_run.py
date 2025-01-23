@@ -1,70 +1,153 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, EarlyStoppingCallback, DataCollatorForLanguageModeling
+from peft import LoraConfig, get_peft_model
+from datasets import load_dataset
+import random
+import numpy as np
+from trl import SFTTrainer, SFTConfig
 
-# Загрузка базовой модели
+# Установка seed для воспроизводимости
+random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
+torch.cuda.manual_seed_all(42)
+
+# Шаг 1: Загрузка данных
+dataset = load_dataset("json", data_files="combined_dataset.json")
+
+# Разделение данных на тренировочную, валидационную и тестовую части
+train_test_split = dataset["train"].train_test_split(test_size=0.2, seed=42)
+train_validation_split = train_test_split["train"].train_test_split(test_size=0.1, seed=42)
+
+train_dataset = train_validation_split["train"]
+validation_dataset = train_validation_split["test"]
+
+print(f"Train size: {len(train_dataset)}, Validation size: {len(validation_dataset)}")
+
+# Шаг 2: Загрузка токенизатора
 base_model = "JackFram/llama-68m"
-model = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.float16)
+tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False, legacy=False)
 
-# Загрузка адаптера (укажи правильный путь к адаптеру)
-adapter_path = "./llama_mental_health_adapter_test"  # Обнови путь, если адаптер сохранён в другом месте
-model = PeftModel.from_pretrained(model, adapter_path)
-
-# Перевод модели в режим оценки
-model.eval()
-
-# Загрузка токенизатора
-tokenizer = AutoTokenizer.from_pretrained(base_model)
-
-# Установим pad_token, чтобы избежать ошибок при генерации
+# Установим pad_token и padding_side, чтобы избежать ошибок
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
-tokenizer.padding_side = "right"
+tokenizer.padding_side = 'right'
 
-# Перемещение модели на устройство (GPU или CPU)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
+# Шаг 3: Автоматический расчет max_length
+def calculate_max_length(dataset, tokenizer, fields):
+    """
+    Рассчитывает максимальную длину токенов для указанных полей в датасете.
+    """
+    max_lengths = {}
+    for field in fields:
+        lengths = [len(tokenizer(example[field], truncation=False)["input_ids"]) for example in dataset]
+        max_lengths[field] = int(np.percentile(lengths, 95))  # 95-й перцентиль
+    return max_lengths
 
-# Текст для генерации ответа
-user_input = "I have been dealing with depression and anxiety for a number of years. I have been on medication, but lately my depression has felt worse. Can counseling help?"
+max_lengths = calculate_max_length(train_dataset, tokenizer, ["Context", "Response"])
+max_length = max_lengths["Context"] + max_lengths["Response"] + 10  # С учетом токенов формата
 
-# Форматирование текста с использованием токенов <|im_start|> и <|im_end|>
-input_text = (
-    f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
-    f"<|im_start|>user\n{user_input}<|im_end|>\n"
-    f"<|im_start|>assistant\n"
+print(f"Рассчитанная длина max_length: {max_length}")
+
+# Шаг 4: Предобработка данных
+def preprocess_data_with_format(example):
+    """
+    Преобразует каждый пример в формат подсказок с токенами <|im_start|> и <|im_end|>.
+    """
+    formatted_prompt = (
+        f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
+        f"<|im_start|>user\n{example['Context']}<|im_end|>\n"
+        f"<|im_start|>assistant\n{example['Response']}<|im_end|>"
+    )
+    tokenized = tokenizer(
+        formatted_prompt,
+        truncation=True,
+        padding="max_length",  # Устанавливаем фиксированную длину
+        max_length=max_length
+    )
+    return {
+        "input_ids": tokenized["input_ids"],
+        "labels": tokenized["input_ids"],  # Совпадает с input_ids для CausalLM
+    }
+
+train_dataset = train_dataset.map(preprocess_data_with_format, batched=True)
+validation_dataset = validation_dataset.map(preprocess_data_with_format, batched=True)
+
+# Шаг 5: Загрузка модели
+model = AutoModelForCausalLM.from_pretrained(
+    base_model,
+    device_map="auto",
+    torch_dtype=torch.float16
 )
 
-# Токенизация входного текста
-input_ids = tokenizer(input_text, return_tensors="pt").input_ids.to(device)
+# Шаг 6: Настройка PEFT (LoRA)
+peft_config = LoraConfig(
+    r=8,
+    lora_alpha=16,
+    target_modules=["q_proj", "v_proj"],
+    lora_dropout=0.1,
+    bias="none",
+    task_type="CAUSAL_LM"
+)
 
-# Автоматический расчет max_length
-# Длина входного текста + запас на ответ
-input_length = input_ids.shape[1]
-response_length_buffer = 50  # Запас для ответа
-max_length = input_length + response_length_buffer
+model = get_peft_model(model, peft_config)
 
-print(f"Входная длина: {input_length}, max_length: {max_length}")
+# Шаг 7: Настройка гиперпараметров обучения для SFTTrainer
+sft_training_args = SFTConfig(
+    learning_rate=1e-5,
+    per_device_train_batch_size=32,
+    per_device_eval_batch_size=32,
+    gradient_accumulation_steps=4,
+    lr_scheduler_type="linear",
+    num_train_epochs=5,
+    logging_strategy="steps",
+    save_strategy="steps",
+    eval_strategy="steps",
+    logging_steps=50,
+    eval_steps=50,
+    save_steps=50,
+    warmup_steps=100,
+    load_best_model_at_end=True,
+    metric_for_best_model="eval_loss",
+    greater_is_better=False,
+    weight_decay=0.01,
+    save_total_limit=2,
+    output_dir="./llama_results_optimized",
+    overwrite_output_dir=True,
+    logging_dir="./logs",
+    seed=42,
+    dataloader_num_workers=4,
+    report_to=[],
+    dataloader_pin_memory=True,
+    fp16=True
+)
 
-# Генерация текста с заданными параметрами
-with torch.no_grad():
-    output = model.generate(
-        input_ids,
-        max_length=max_length,
-        temperature=0.7,  # Управляет разнообразием ответов
-        top_k=4,  # Использует только 4 вероятных токена
-        repetition_penalty=1.2,  # Штраф за повторение
-        penalty_alpha=0.5,  # Альфа штраф
-        do_sample=True  # Включает сэмплирование
-    )
+# Шаг 8: Создание DataCollator
+data_collator = DataCollatorForLanguageModeling(
+    tokenizer=tokenizer,
+    mlm=False
+)
 
-# Расшифровка и вывод результата
-generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
+# Шаг 9: Создание SFTTrainer
+sft_trainer = SFTTrainer(
+    model=model,
+    train_dataset=train_dataset,
+    eval_dataset=validation_dataset,
+    args=sft_training_args,
+    data_collator=data_collator,
+    callbacks=[
+        EarlyStoppingCallback(
+            early_stopping_patience=3
+        ),
+    ],
+)
 
-# Извлечение ответа ассистента (после <|im_start|>assistant)
-response_start = generated_text.find("<|im_start|>assistant") + len("<|im_start|>assistant\n")
-response_end = generated_text.find("<|im_end|>", response_start)
-final_response = generated_text[response_start:response_end].strip()
+# Шаг 10: Обучение модели с помощью SFTTrainer
+sft_trainer.train()
 
-print("Сгенерированный ответ:")
-print(final_response)
+# Шаг 11: Сохранение дообученного адаптера
+adapter_save_path = "./llama_mental_health_adapter_test"
+model.save_pretrained(adapter_save_path)
+tokenizer.save_pretrained(adapter_save_path)
+
+print(f"A model adapter was saved at: {adapter_save_path}")
