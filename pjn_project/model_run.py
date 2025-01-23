@@ -13,7 +13,7 @@ import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 import spacy
 
-from nltk.translate.bleu_score import sentence_bleu
+from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from nltk.translate.bleu_score import corpus_bleu
 
 # Загружаем необходимые ресурсы для VADER
