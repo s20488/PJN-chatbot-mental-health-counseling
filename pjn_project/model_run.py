@@ -69,7 +69,7 @@ def calculate_bleu(reference, candidate):
     candidate_tokens = candidate.split()
     return sentence_bleu(reference_tokens, candidate_tokens)
 
-file_path = 'responses.json'
+file_path = 'combined_dataset.json'
 result = [{"generated_text": "Your generated response here"}]
 generated_text = result[0]["generated_text"]
 
@@ -78,7 +78,6 @@ with open(file_path, 'r', encoding='utf-8') as file:
         data = json.loads(line)
         reference_response = data['Response']
         bleu_score = calculate_bleu(reference_response, generated_text)
-        print(f"Generated Text: {generated_text}")
         print(f"BLEU score: {bleu_score}")
 
 # Метрика Perplexity
