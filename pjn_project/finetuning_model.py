@@ -71,10 +71,10 @@ model = get_peft_model(model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
-    learning_rate=3e-5,  # Умеренная скорость обучения для стабильного обучения
+    learning_rate=5e-5,  # Умеренная скорость обучения для стабильного обучения
     per_device_train_batch_size=128,  # Увеличение размера батча для более эффективного использования GPU
     per_device_eval_batch_size=128,
-    gradient_accumulation_steps=4,  # Уменьшение количества шагов накопления градиентов
+    gradient_accumulation_steps=2,  # Уменьшение количества шагов накопления градиентов
     lr_scheduler_type="cosine",
     num_train_epochs=50,  # Уменьшение количества эпох для ускорения обучения
     logging_strategy="steps",
@@ -124,19 +124,19 @@ sft_trainer.train()
 
 # Шаг 10: Настройка гиперпараметров обучения для DPOTrainer
 dpo_training_args = TrainingArguments(
-    learning_rate=3e-5,  # Умеренная скорость обучения
+    learning_rate=5e-5,  # Умеренная скорость обучения
     per_device_train_batch_size=32,  # Максимальное увеличение размера батча
     per_device_eval_batch_size=32,
     gradient_accumulation_steps=2,  # Уменьшение количества шагов накопления градиентов
     lr_scheduler_type="cosine",
-    num_train_epochs=5,  # Увеличение количества эпох для более тщательного обучения
+    num_train_epochs=200,  # Увеличение количества эпох для более тщательного обучения
     logging_strategy="steps",
     save_strategy="steps",
     evaluation_strategy="steps",
     logging_steps=10,  # Увеличение интервала логирования
     eval_steps=10,
     save_steps=10,
-    warmup_steps=100,  # Увеличение количества шагов разогрева
+    warmup_steps=10,  # Увеличение количества шагов разогрева
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
