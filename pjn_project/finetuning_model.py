@@ -26,11 +26,12 @@ print(f"Train size: {len(train_dataset)}, Validation size: {len(validation_datas
 
 # Шаг 2: Загрузка токенизатора
 base_model = "JackFram/llama-68m"
-tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
+tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False, legacy=False)
 
-# Установим pad_token, чтобы избежать ошибки
+# Установим pad_token и padding_side, чтобы избежать ошибок
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
+tokenizer.padding_side = 'right'
 
 # Шаг 3: Предобработка данных
 def preprocess_data(example):
@@ -75,7 +76,7 @@ training_args = SFTConfig(
     per_device_eval_batch_size=128,
     gradient_accumulation_steps=16,
     lr_scheduler_type="cosine",
-    num_train_epochs=200,  # Уменьшение количества эпох до 100
+    num_train_epochs=100,  # Уменьшение количества эпох до 100
     logging_strategy="steps",
     save_strategy="steps",
     eval_strategy="steps",
@@ -112,7 +113,8 @@ trainer = SFTTrainer(
     data_collator=data_collator,
     callbacks=[
         EarlyStoppingCallback(
-            early_stopping_patience=5
+            early_stopping_patience=10,
+            early_stopping_threshold=0.005
         ),
     ],
 )
