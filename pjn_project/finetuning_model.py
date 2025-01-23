@@ -69,7 +69,7 @@ model = get_peft_model(model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения
 training_args = TrainingArguments(
-    output_dir="./llama_results_test",
+    output_dir="./llama_results",
     overwrite_output_dir=True,
     per_device_train_batch_size=64,  # Уменьшение размера батча
     per_device_eval_batch_size=64,
@@ -88,7 +88,7 @@ training_args = TrainingArguments(
     dataloader_num_workers=24,
     report_to=[],
     load_best_model_at_end=True,
-    pin_memory=True  # Ускорение передачи данных на GPU
+    dataloader_pin_memory=True  # Ускорение передачи данных на GPU
 )
 
 # Шаг 7: Создание DataCollator
@@ -112,7 +112,7 @@ trainer = Trainer(
 trainer.train()
 
 # Шаг 10: Сохранение дообученного адаптера
-adapter_save_path = "./llama_mental_health_adapter_test"
+adapter_save_path = "./llama_mental_health_adapter"
 model.save_pretrained(adapter_save_path)
 tokenizer.save_pretrained(adapter_save_path)
 
