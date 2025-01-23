@@ -24,7 +24,7 @@ model.to(device)
 input_text = "I have been dealing with depression and anxiety for a number of years. I have been on medication, but lately my depression has felt worse. Can counseling help?"
 input_ids = tokenizer(input_text, return_tensors="pt").input_ids.to(device)
 
-# Генерация текста с repetition_penalty и top_k
+# Генерация текста с заданными параметрами
 with torch.no_grad():
     output = model.generate(
         input_ids,
@@ -32,6 +32,7 @@ with torch.no_grad():
         temperature=0.7,  # Управляет разнообразием ответов
         top_k=2,  # Использует только 2 вероятных токена
         repetition_penalty=1.0016,  # Штраф за повторение
+        penalty_alpha=0.5,  # Альфа штраф
         do_sample=True  # Включает сэмплирование
     )
 
