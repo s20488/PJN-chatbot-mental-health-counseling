@@ -71,7 +71,7 @@ model = get_peft_model(model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения
 training_args = SFTConfig(
-    learning_rate=2e-5,  # Уменьшение скорости обучения
+    learning_rate=5e-5,  # Уменьшение скорости обучения
     per_device_train_batch_size=128,  # Оставляем размер батча
     per_device_eval_batch_size=128,
     gradient_accumulation_steps=16,
