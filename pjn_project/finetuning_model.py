@@ -82,31 +82,32 @@ ref_model = get_peft_model(ref_model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
-    learning_rate=5e-5,  # Увеличение скорости обучения для более быстрого обучения
-    per_device_train_batch_size=128,  # Уменьшение размера батча для уменьшения нагрузки на память
+    learning_rate=3e-5,  # Уменьшение скорости обучения
+    per_device_train_batch_size=128,
     per_device_eval_batch_size=128,
-    gradient_accumulation_steps=1,  # Увеличение количества шагов накопления градиентов для более стабильного обучения
+    gradient_accumulation_steps=1,
     lr_scheduler_type="linear",
-    num_train_epochs=100,  # Уменьшение количества эпох для ускорения обучения
+    num_train_epochs=100,
     logging_strategy="steps",
     save_strategy="steps",
     eval_strategy="steps",
-    logging_steps=10,  # Увеличение частоты логирования для более частого мониторинга
+    logging_steps=10,
     eval_steps=10,
     save_steps=10,
-    warmup_steps=50,  # Увеличение количества шагов разогрева для более плавной адаптации
+    warmup_steps=100,  # Увеличение количества шагов разогрева
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
-    weight_decay=0.01,
-    save_total_limit=3,  # Уменьшение количества сохраняемых моделей
+    weight_decay=0.1,  # Увеличение регуляризации
+    save_total_limit=3,
     output_dir="./llama_results_optimized",
     overwrite_output_dir=True,
     logging_dir="./logs",
     seed=42,
-    dataloader_num_workers=4,  # Уменьшение количества рабочих потоков для уменьшения нагрузки на систему
+    dataloader_num_workers=4,
     report_to=[],
-    dataloader_pin_memory=True
+    dataloader_pin_memory=True,
+    fp16=True  # Включение смешанной точности
 )
 
 # Шаг 7: Создание DataCollator
