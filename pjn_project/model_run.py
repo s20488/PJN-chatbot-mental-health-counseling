@@ -58,9 +58,10 @@ bleu_score = bleu_metric.compute(predictions=predictions, references=[references
 print(f"BLEU score: {bleu_score['bleu']}")
 
 # Метрика Perplexity
+# Метрика Perplexity
 def calculate_perplexity(text):
     encodings = tokenizer(text, return_tensors='pt')
-    max_length = model.config.n_positions
+    max_length = model.config.max_position_embeddings
     stride = 512
 
     lls = []
