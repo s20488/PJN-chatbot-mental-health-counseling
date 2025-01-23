@@ -4,7 +4,7 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
 import numpy as np
-from trl import SFTTrainer, SFTConfig, DPOTrainer  # Импортируем SFTTrainer, SFTConfig и DPOTrainer
+from trl import SFTTrainer, SFTConfig, DPOTrainer, DPOConfig  # Импортируем SFTTrainer, SFTConfig, DPOTrainer и DPOConfig
 
 # Установка seed для воспроизводимости
 random.seed(42)
@@ -71,19 +71,19 @@ model = get_peft_model(model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
-    learning_rate=5e-5,  # Умеренная скорость обучения для стабильного обучения
-    per_device_train_batch_size=128,  # Увеличение размера батча для более эффективного использования GPU
+    learning_rate=1e-4,  # Увеличение скорости обучения для более быстрого обучения
+    per_device_train_batch_size=128,  # Оставляем размер батча на прежнем уровне
     per_device_eval_batch_size=128,
-    gradient_accumulation_steps=2,  # Уменьшение количества шагов накопления градиентов
+    gradient_accumulation_steps=1,  # Уменьшение количества шагов накопления градиентов для более частого обновления параметров
     lr_scheduler_type="cosine",
     num_train_epochs=1,  # Уменьшение количества эпох для ускорения обучения
     logging_strategy="steps",
     save_strategy="steps",
-    eval_strategy="steps",
-    logging_steps=10,  # Увеличение интервала логирования
-    eval_steps=10,
-    save_steps=10,
-    warmup_steps=100,  # Увеличение количества шагов разогрева
+    eval_strategy="steps",  # Используем eval_strategy вместо evaluation_strategy
+    logging_steps=5,  # Увеличение частоты логирования для более частого мониторинга
+    eval_steps=5,
+    save_steps=5,
+    warmup_steps=10,  # Уменьшение количества шагов разогрева для быстрой адаптации
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
@@ -123,21 +123,21 @@ sft_trainer = SFTTrainer(
 sft_trainer.train()
 
 # Шаг 10: Настройка гиперпараметров обучения для DPOTrainer
-dpo_training_args = TrainingArguments(
-    output_dir="./dpo_results_test",
-    learning_rate=5e-5,  # Умеренная скорость обучения
-    per_device_train_batch_size=32,  # Максимальное увеличение размера батча
+dpo_training_args = DPOConfig(
+    output_dir="./dpo_results_test",  # Указание директории для сохранения результатов
+    learning_rate=1e-4,  # Увеличение скорости обучения для более быстрого обучения
+    per_device_train_batch_size=32,  # Оставляем размер батча на прежнем уровне
     per_device_eval_batch_size=32,
-    gradient_accumulation_steps=2,  # Уменьшение количества шагов накопления градиентов
+    gradient_accumulation_steps=1,  # Уменьшение количества шагов накопления градиентов для более частого обновления параметров
     lr_scheduler_type="cosine",
-    num_train_epochs=200,  # Увеличение количества эпох для более тщательного обучения
+    num_train_epochs=3,  # Уменьшение количества эпох для ускорения обучения
     logging_strategy="steps",
     save_strategy="steps",
-    evaluation_strategy="steps",
-    logging_steps=10,  # Увеличение интервала логирования
-    eval_steps=10,
-    save_steps=10,
-    warmup_steps=10,  # Увеличение количества шагов разогрева
+    eval_strategy="steps",  # Используем eval_strategy вместо evaluation_strategy
+    logging_steps=5,  # Увеличение частоты логирования для более частого мониторинга
+    eval_steps=5,
+    save_steps=5,
+    warmup_steps=10,  # Уменьшение количества шагов разогрева для быстрой адаптации
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
@@ -146,16 +146,14 @@ dpo_training_args = TrainingArguments(
     remove_unused_columns=False,
 )
 
-# Шаг 11: Создание DPOTrainer
+# Шаг 11: Создание DPOTrainer с использованием processing_class вместо tokenizer
 dpo_trainer = DPOTrainer(
     model=model,
-    beta=0.1,
-    train_dataset=train_dataset,
-    tokenizer=tokenizer,
-    eval_dataset=validation_dataset,
-    max_length=1536,
-    max_prompt_length=1024,
+    ref_model=model,  # Указание модели для расчета имплицитных наград
     args=dpo_training_args,
+    processing_class=tokenizer,  # Используем processing_class вместо tokenizer
+    train_dataset=train_dataset,
+    eval_dataset=validation_dataset,
     callbacks=[
         EarlyStoppingCallback(
             early_stopping_patience=3,
