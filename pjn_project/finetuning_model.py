@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, EarlyStoppingCallback
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, EarlyStoppingCallback, DataCollatorForLanguageModeling
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
@@ -69,10 +69,10 @@ model = get_peft_model(model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения
 training_args = TrainingArguments(
-    output_dir="./llama_results",
+    output_dir="./llama_results_test",
     overwrite_output_dir=True,
-    per_device_train_batch_size=128,
-    per_device_eval_batch_size=128,
+    per_device_train_batch_size=64,  # Уменьшение размера батча
+    per_device_eval_batch_size=64,
     learning_rate=5e-5,
     num_train_epochs=200,
     logging_dir="./logs",
@@ -87,24 +87,32 @@ training_args = TrainingArguments(
     seed=42,
     dataloader_num_workers=24,
     report_to=[],
-    load_best_model_at_end=True
+    load_best_model_at_end=True,
+    pin_memory=True  # Ускорение передачи данных на GPU
 )
 
-# Шаг 7: Создание Trainer
+# Шаг 7: Создание DataCollator
+data_collator = DataCollatorForLanguageModeling(
+    tokenizer=tokenizer,
+    mlm=False
+)
+
+# Шаг 8: Создание Trainer
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,
     eval_dataset=validation_dataset,
-    processing_class=tokenizer,
+    tokenizer=tokenizer,  # Исправление параметра
+    data_collator=data_collator,
     callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
 )
 
-# Шаг 8: Обучение модели
+# Шаг 9: Обучение модели
 trainer.train()
 
-# Шаг 9: Сохранение дообученного адаптера
-adapter_save_path = "./llama_mental_health_adapter"
+# Шаг 10: Сохранение дообученного адаптера
+adapter_save_path = "./llama_mental_health_adapter_test"
 model.save_pretrained(adapter_save_path)
 tokenizer.save_pretrained(adapter_save_path)
 
