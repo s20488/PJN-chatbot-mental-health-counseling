@@ -1,135 +1,203 @@
+import os
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, EarlyStoppingCallback, DataCollatorForLanguageModeling
-from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
-import random
-import numpy as np
-from trl import SFTTrainer, SFTConfig
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    BitsAndBytesConfig,
+    HfArgumentParser,
+    TrainingArguments,
+    pipeline,
+    logging,
+)
+from peft import LoraConfig, PeftModel
+from trl import SFTTrainer
 
-# Установка seed для воспроизводимости
-random.seed(42)
-np.random.seed(42)
-torch.manual_seed(42)
-torch.cuda.manual_seed_all(42)
+model_name = "NousResearch/Llama-2-7b-chat-hf"
+new_model = "Llama-2-7b-chat-finetune-qlora"
 
-# Шаг 1: Загрузка данных
-dataset = load_dataset("json", data_files="combined_dataset.json")
+lora_r = 64  # lora attention dimension/ rank
+lora_alpha = 16  # lora scaling parameter
+lora_dropout = 0.1  # lora dropout probability
 
-# Разделение данных на тренировочную, валидационную и тестовую части
-train_test_split = dataset["train"].train_test_split(test_size=0.2, seed=42)
-train_validation_split = train_test_split["train"].train_test_split(test_size=0.1, seed=42)
+use_4bit = True
+bnb_4bit_compute_dtype = "float16"
+bnb_4bit_quant_type = "nf4"
+use_nested_quant = False
 
-train_dataset = train_validation_split["train"]
-validation_dataset = train_validation_split["test"]
+# output directory where the model predictions and checkpoints will be stored
+output_dir = "./results"
 
-print(f"Train size: {len(train_dataset)}, Validation size: {len(validation_dataset)}")
+# number of training epochs
+num_train_epochs = 5
 
-# Шаг 2: Загрузка токенизатора
-base_model = "JackFram/llama-68m"
-tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False, legacy=False)
+# enable fp16/bf16 training (set bf16 to True when using A100 GPU in google colab)
+fp16 = False
+bf16 = False
 
-# Установим pad_token и padding_side, чтобы избежать ошибок
-if tokenizer.pad_token is None:
-    tokenizer.pad_token = tokenizer.eos_token
-tokenizer.padding_side = "right"
+# batch size per GPU for training
+per_device_train_batch_size = 4
 
-# Шаг 3: Форматирование данных с токенами <|im_start|> и <|im_end|>
-def format_with_tokens(context, response):
-    """
-    Форматирует данные в виде подсказок с токенами <|im_start|> и <|im_end|>.
-    """
-    return (
-        f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
-        f"<|im_start|>user\n{context}<|im_end|>\n"
-        f"<|im_start|>assistant\n{response}<|im_end|>"
-    )
+# batch size per GPU for evaluation
+per_device_eval_batch_size = 4
 
-def preprocess_data_with_tokens(example):
-    """
-    Преобразует каждый пример данных в формат подсказок с токенами.
-    """
-    formatted_prompt = format_with_tokens(example["Context"], example["Response"])
-    tokenized = tokenizer(
-        formatted_prompt, truncation=True, padding="max_length", max_length=512
-    )
+# gradient accumulation steps - No of update steps
+gradient_accumulation_steps = 1
+
+# learning rate
+learning_rate = 2e-4
+
+# weight decay
+weight_decay = 0.001
+
+# Gradient clipping(max gradient Normal)
+max_grad_norm = 0.3
+
+# optimizer to use
+optim = "paged_adamw_32bit"
+
+# learning rate scheduler
+lr_scheduler_type = "cosine"
+
+# seed for reproducibility
+seed = 1
+
+# Number of training steps
+max_steps = -1
+
+# Ratio of steps for linear warmup
+warmup_ratio = 0.03
+
+# group sequnces into batches with same length
+group_by_length = True
+
+# save checkpoint every X updates steps
+save_steps = 0
+
+# Log at every X updates steps
+logging_steps = 50
+
+# maximum sequence length to use
+max_seq_length = None
+
+packing = False
+
+# load the entire model on the GPU
+device_map = {"": 0}
+
+# Load dataset from combined_dataset.json
+dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
+
+# Preprocess dataset to combine `Context` and `Response`
+def preprocess_function(examples):
     return {
-        "input_ids": tokenized["input_ids"],
-        "labels": tokenized["input_ids"],  # Используется для обучения
+        "text": f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>"
     }
 
-train_dataset = train_dataset.map(preprocess_data_with_tokens, batched=True)
-validation_dataset = validation_dataset.map(preprocess_data_with_tokens, batched=True)
+dataset = dataset.map(preprocess_function)
 
-# Шаг 4: Загрузка модели
+# Load tokenizer and model with QLoRA config
+compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
+
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=use_4bit,
+    bnb_4bit_quant_type=bnb_4bit_quant_type,
+    bnb_4bit_compute_dtype=compute_dtype,
+    bnb_4bit_use_double_quant=use_nested_quant,
+)
+
+# Checking GPU compatibility with bfloat16
+if compute_dtype == torch.float16 and use_4bit:
+    major, _ = torch.cuda.get_device_capability()
+    if major >= 8:
+        print("=" * 80)
+        print("Your GPU supports bfloat16, you are getting accelerate training with bf16= True")
+        print("=" * 80)
+
+# Load base model
 model = AutoModelForCausalLM.from_pretrained(
-    base_model,
-    device_map="auto",
-    torch_dtype=torch.float16
+    model_name,
+    quantization_config=bnb_config,
+    device_map=device_map,
 )
 
-# Шаг 5: Настройка PEFT (LoRA)
+model.config.use_cache = False
+model.config.pretraining_tp = 1
+
+# Load LLama tokenizer
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+tokenizer.pad_token = tokenizer.eos_token
+tokenizer.padding_side = "right"
+
+# Load QLoRA config
 peft_config = LoraConfig(
-    r=8,
-    lora_alpha=16,
-    target_modules=["q_proj", "v_proj"],
-    lora_dropout=0.1,
+    lora_alpha=lora_alpha,
+    lora_dropout=lora_dropout,
+    r=lora_r,
     bias="none",
-    task_type="CAUSAL_LM"
+    task_type="CAUSAL_LM",
 )
 
-model = get_peft_model(model, peft_config)
-
-sft_training_args = SFTConfig(
-    learning_rate=1e-4,  # Более высокая скорость обучения для больших батчей
-    per_device_train_batch_size=128,  # Увеличенный размер батча
-    per_device_eval_batch_size=128,
-    gradient_accumulation_steps=1,  # Нет необходимости в аккумулировании
-    lr_scheduler_type="cosine",
-    num_train_epochs=5,  # Уменьшено для ускорения обучения
-    logging_strategy="steps",
-    save_strategy="steps",
-    eval_strategy="steps",
-    logging_steps=50,  # Логгировать реже для уменьшения IO-загрузки
-    eval_steps=50,
-    save_steps=50,
-    warmup_steps=500,  # Длинный разогрев
-    load_best_model_at_end=True,
-    metric_for_best_model="eval_loss",
-    greater_is_better=False,
-    weight_decay=0.05,  # Чуть ниже, чтобы не переобучиться
-    save_total_limit=5,  # Сохранить больше моделей
-    output_dir="./llama_results_optimized",
-    overwrite_output_dir=True,
-    logging_dir="./logs",
-    seed=42,
-    dataloader_num_workers=8,  # Использование нескольких потоков
-    report_to=[],
-    dataloader_pin_memory=True,
-    fp16=True  # Смешанная точность
+# Set Training parameters
+training_arguments = TrainingArguments(
+    output_dir=output_dir,
+    num_train_epochs=num_train_epochs,
+    per_device_train_batch_size=per_device_train_batch_size,
+    gradient_accumulation_steps=gradient_accumulation_steps,
+    optim=optim,
+    save_steps=save_steps,
+    logging_steps=logging_steps,
+    learning_rate=learning_rate,
+    fp16=fp16,
+    bf16=bf16,
+    max_grad_norm=max_grad_norm,
+    weight_decay=weight_decay,
+    lr_scheduler_type=lr_scheduler_type,
+    warmup_ratio=warmup_ratio,
+    group_by_length=group_by_length,
+    max_steps=max_steps,
+    report_to="tensorboard",
 )
 
-# Шаг 7: Создание DataCollator
-data_collator = DataCollatorForLanguageModeling(
-    tokenizer=tokenizer,
-    mlm=False
-)
-
-# Шаг 8: Создание SFTTrainer
-sft_trainer = SFTTrainer(
+# SFT Trainer
+trainer = SFTTrainer(
     model=model,
-    train_dataset=train_dataset,
-    eval_dataset=validation_dataset,
-    args=sft_training_args,
-    data_collator=data_collator,
-    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+    train_dataset=dataset,
+    peft_config=peft_config,
+    dataset_text_field="text",
+    max_seq_length=max_seq_length,
+    args=training_arguments,
+    tokenizer=tokenizer,
+    packing=packing,
 )
 
-# Шаг 9: Обучение модели с помощью SFTTrainer
-sft_trainer.train()
+# Start training
+trainer.train()
 
-# Шаг 10: Сохранение дообученного адаптера
-adapter_save_path = "./llama_mental_health_adapter_test"
-model.save_pretrained(adapter_save_path)
-tokenizer.save_pretrained(adapter_save_path)
+# Save trained model
+trainer.model.save_pretrained(new_model)
 
-print(f"A model adapter was saved at: {adapter_save_path}")
+# Ignore warnings
+logging.set_verbosity(logging.CRITICAL)
+
+# Run text generation pipeline with our next model
+prompt = "How can I get to a place where I can be content from day to day?"
+pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200)
+result = pipe(f"<s>[INST] {prompt} [/INST]")
+print(result[0]["generated_text"])
+
+# Reload model in FP16 and merge it with LoRA weights
+base_model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    low_cpu_mem_usage=True,
+    return_dict=True,
+    torch_dtype=torch.float16,
+    device_map=device_map,
+)
+model = PeftModel.from_pretrained(base_model, new_model)
+model = model.merge_and_unload()
+
+# Reload tokenizer to save it
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+tokenizer.pad_token = tokenizer.eos_token
+tokenizer.padding_side = "right"
