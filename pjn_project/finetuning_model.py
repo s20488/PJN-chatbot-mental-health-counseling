@@ -1,16 +1,12 @@
-import os
 import torch
 from datasets import load_dataset
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     BitsAndBytesConfig,
-    HfArgumentParser,
     TrainingArguments,
-    pipeline,
-    logging,
 )
-from peft import LoraConfig, PeftModel
+from peft import LoraConfig
 from trl import SFTTrainer
 
 model_name = "JackFram/llama-68m"
@@ -85,11 +81,13 @@ device_map = {"": 0}
 # Load dataset from combined_dataset.json
 dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
 
+
 # Preprocess dataset to combine `Context` and `Response`
 def preprocess_function(examples):
     return {
         "text": f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>"
     }
+
 
 dataset = dataset.map(preprocess_function)
 
