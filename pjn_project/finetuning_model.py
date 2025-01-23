@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorForLanguageModeling
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, EarlyStoppingCallback, DataCollatorForLanguageModeling
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
@@ -26,36 +26,39 @@ print(f"Train size: {len(train_dataset)}, Validation size: {len(validation_datas
 
 # Шаг 2: Загрузка токенизатора
 base_model = "JackFram/llama-68m"
-tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
+tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False, legacy=False)
 
 # Установим pad_token и padding_side, чтобы избежать ошибок
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
-tokenizer.padding_side = 'right'
+tokenizer.padding_side = "right"
 
-# Шаг 3: Предобработка данных с динамической длиной
-def preprocess_data(example):
+# Шаг 3: Форматирование данных с токенами <|im_start|> и <|im_end|>
+def format_with_tokens(context, response):
     """
-    Преобразует каждый пример в формат подсказок с токенами <|im_start|> и <|im_end|>.
+    Форматирует данные в виде подсказок с токенами <|im_start|> и <|im_end|>.
     """
-    formatted_prompt = (
+    return (
         f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
-        f"<|im_start|>user\n{example['Context']}<|im_end|>\n"
-        f"<|im_start|>assistant\n{example['Response']}<|im_end|>"
+        f"<|im_start|>user\n{context}<|im_end|>\n"
+        f"<|im_start|>assistant\n{response}<|im_end|>"
     )
+
+def preprocess_data_with_tokens(example):
+    """
+    Преобразует каждый пример данных в формат подсказок с токенами.
+    """
+    formatted_prompt = format_with_tokens(example["Context"], example["Response"])
     tokenized = tokenizer(
-        formatted_prompt,
-        truncation=True,
-        padding="longest"  # Выравниваем по самой длинной строке в батче
+        formatted_prompt, truncation=True, padding="max_length", max_length=512
     )
     return {
         "input_ids": tokenized["input_ids"],
-        "labels": tokenized["input_ids"],
+        "labels": tokenized["input_ids"],  # Используется для обучения
     }
 
-# Обработка тренировочного и валидационного датасетов
-train_dataset = train_dataset.map(preprocess_data, batched=True)
-validation_dataset = validation_dataset.map(preprocess_data, batched=True)
+train_dataset = train_dataset.map(preprocess_data_with_tokens, batched=True)
+validation_dataset = validation_dataset.map(preprocess_data_with_tokens, batched=True)
 
 # Шаг 4: Загрузка модели
 model = AutoModelForCausalLM.from_pretrained(
@@ -76,34 +79,33 @@ peft_config = LoraConfig(
 
 model = get_peft_model(model, peft_config)
 
-# Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
-    learning_rate=1e-5,
-    per_device_train_batch_size=16,
-    per_device_eval_batch_size=16,
-    gradient_accumulation_steps=4,
-    lr_scheduler_type="linear",
-    num_train_epochs=5,
+    learning_rate=1e-4,  # Более высокая скорость обучения для больших батчей
+    per_device_train_batch_size=128,  # Увеличенный размер батча
+    per_device_eval_batch_size=128,
+    gradient_accumulation_steps=1,  # Нет необходимости в аккумулировании
+    lr_scheduler_type="cosine",
+    num_train_epochs=5,  # Уменьшено для ускорения обучения
     logging_strategy="steps",
     save_strategy="steps",
     eval_strategy="steps",
-    logging_steps=50,
+    logging_steps=50,  # Логгировать реже для уменьшения IO-загрузки
     eval_steps=50,
     save_steps=50,
-    warmup_steps=100,
+    warmup_steps=500,  # Длинный разогрев
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
-    weight_decay=0.01,
-    save_total_limit=2,
+    weight_decay=0.05,  # Чуть ниже, чтобы не переобучиться
+    save_total_limit=5,  # Сохранить больше моделей
     output_dir="./llama_results_optimized",
     overwrite_output_dir=True,
     logging_dir="./logs",
     seed=42,
-    dataloader_num_workers=4,
+    dataloader_num_workers=8,  # Использование нескольких потоков
     report_to=[],
     dataloader_pin_memory=True,
-    fp16=True
+    fp16=True  # Смешанная точность
 )
 
 # Шаг 7: Создание DataCollator
@@ -119,11 +121,7 @@ sft_trainer = SFTTrainer(
     eval_dataset=validation_dataset,
     args=sft_training_args,
     data_collator=data_collator,
-    callbacks=[
-        EarlyStoppingCallback(
-            early_stopping_patience=3
-        ),
-    ],
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
 )
 
 # Шаг 9: Обучение модели с помощью SFTTrainer
