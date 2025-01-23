@@ -13,8 +13,8 @@ from transformers import (
 from peft import LoraConfig, PeftModel
 from trl import SFTTrainer
 
-model_name = "meta-llama/Llama-3.2-1B"
-new_model = "Llama-3.2-1B-finetune-qlora"
+model_name = "unsloth/Llama-3.2-1B-Instruct"
+new_model = "Llama-3.2-1B-Instruct-finetune-qlora"
 
 lora_r = 64  # lora attention dimension/ rank
 lora_alpha = 16  # lora scaling parameter
