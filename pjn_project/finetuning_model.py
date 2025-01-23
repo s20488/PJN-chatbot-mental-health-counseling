@@ -83,9 +83,9 @@ ref_model = get_peft_model(ref_model, peft_config)
 # Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
     learning_rate=3e-5,  # Увеличение скорости обучения для более быстрого обучения
-    per_device_train_batch_size=128,  # Оставляем размер батча на прежнем уровне
-    per_device_eval_batch_size=128,
-    gradient_accumulation_steps=1,  # Уменьшение количества шагов накопления градиентов для более частого обновления параметров
+    per_device_train_batch_size=64,  # Оставляем размер батча на прежнем уровне
+    per_device_eval_batch_size=64,
+    gradient_accumulation_steps=2,  # Уменьшение количества шагов накопления градиентов для более частого обновления параметров
     lr_scheduler_type="cosine",
     num_train_epochs=100,  # Уменьшение количества эпох для ускорения обучения
     logging_strategy="steps",
