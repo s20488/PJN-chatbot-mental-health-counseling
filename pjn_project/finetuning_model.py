@@ -33,13 +33,11 @@ if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = 'right'
 
-# Шаг 3: Установка фиксированного max_length
-max_length = 1000  # Фиксированная длина для всех примеров (настраивается вручную, если длины больше или меньше)
-
-# Шаг 4: Предобработка данных
-def preprocess_data_with_format(example):
+# Шаг 3: Предобработка данных
+def preprocess_data_with_dynamic_length(example):
     """
     Преобразует каждый пример в формат подсказок с токенами <|im_start|> и <|im_end|>.
+    Автоматически рассчитывает длину для каждого примера.
     """
     formatted_prompt = (
         f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
@@ -48,9 +46,8 @@ def preprocess_data_with_format(example):
     )
     tokenized = tokenizer(
         formatted_prompt,
-        truncation=True,
-        padding="max_length",  # Устанавливаем фиксированную длину
-        max_length=max_length
+        truncation=True,  # Урезает слишком длинные примеры
+        padding="longest",  # Автоматически добавляет паддинг к самой длинной строке в батче
     )
     return {
         "input_ids": tokenized["input_ids"],
@@ -58,17 +55,17 @@ def preprocess_data_with_format(example):
     }
 
 # Обработка тренировочного и валидационного датасетов
-train_dataset = train_dataset.map(preprocess_data_with_format, batched=True)
-validation_dataset = validation_dataset.map(preprocess_data_with_format, batched=True)
+train_dataset = train_dataset.map(preprocess_data_with_dynamic_length, batched=True)
+validation_dataset = validation_dataset.map(preprocess_data_with_dynamic_length, batched=True)
 
-# Шаг 5: Загрузка модели
+# Шаг 4: Загрузка модели
 model = AutoModelForCausalLM.from_pretrained(
     base_model,
     device_map="auto",
     torch_dtype=torch.float16
 )
 
-# Шаг 6: Настройка PEFT (LoRA)
+# Шаг 5: Настройка PEFT (LoRA)
 peft_config = LoraConfig(
     r=8,
     lora_alpha=16,
@@ -80,11 +77,11 @@ peft_config = LoraConfig(
 
 model = get_peft_model(model, peft_config)
 
-# Шаг 7: Настройка гиперпараметров обучения для SFTTrainer
+# Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
     learning_rate=1e-5,
-    per_device_train_batch_size=32,
-    per_device_eval_batch_size=32,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
     gradient_accumulation_steps=4,
     lr_scheduler_type="linear",
     num_train_epochs=5,
@@ -110,13 +107,13 @@ sft_training_args = SFTConfig(
     fp16=True
 )
 
-# Шаг 8: Создание DataCollator
+# Шаг 7: Создание DataCollator
 data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
     mlm=False
 )
 
-# Шаг 9: Создание SFTTrainer
+# Шаг 8: Создание SFTTrainer
 sft_trainer = SFTTrainer(
     model=model,
     train_dataset=train_dataset,
@@ -130,10 +127,10 @@ sft_trainer = SFTTrainer(
     ],
 )
 
-# Шаг 10: Обучение модели с помощью SFTTrainer
+# Шаг 9: Обучение модели с помощью SFTTrainer
 sft_trainer.train()
 
-# Шаг 11: Сохранение дообученного адаптера
+# Шаг 10: Сохранение дообученного адаптера
 adapter_save_path = "./llama_mental_health_adapter_test"
 model.save_pretrained(adapter_save_path)
 tokenizer.save_pretrained(adapter_save_path)
