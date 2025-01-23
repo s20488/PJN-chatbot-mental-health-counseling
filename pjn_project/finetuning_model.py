@@ -33,7 +33,7 @@ num_train_epochs = 5
 
 # enable fp16/bf16 training (set bf16 to True when using A100 GPU in google colab)
 fp16 = False
-bf16 = False
+bf16 = True
 
 # batch size per GPU for training
 per_device_train_batch_size = 4
