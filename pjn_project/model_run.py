@@ -80,6 +80,7 @@ def calculate_perplexity(text):
     ppl = torch.exp(torch.stack(lls).sum() / end_loc)
     return ppl.item()
 
+
 perplexity_score = calculate_perplexity(generated_text)
 print(f"Perplexity: {perplexity_score}")
 
@@ -112,12 +113,12 @@ def ab_test(model_a, model_b, prompt):
     return result_a[0]["generated_text"], result_b[0]["generated_text"]
 
 
-# Пример использования A/B тестирования
-model_a_name = "Llama-3.2-1B-Instruct-finetune-qlora"
-model_b_name = "llama-68m-finetune-qlora"
-model_a = AutoModelForCausalLM.from_pretrained(model_a_name, torch_dtype=torch.float16).to(device_map[""])
-model_b = PeftModel.from_pretrained(base_model, new_model).merge_and_unload().to(device_map[""])
+def relevance_score(text, prompt):
+    # Считаем релевантность текста по ключевым словам, которые должны быть в ответе
+    keywords = ["content", "day", "place", "happiness", "feel", "calm"]
+    score = sum(1 for word in keywords if word in text.lower()) / len(keywords)
+    return score
 
-text_a, text_b = ab_test(model_a, model_b, prompt)
-print(f"Model A Output: {text_a}")
-print(f"Model B Output: {text_b}")
+
+relevance = relevance_score(generated_text, prompt)
+print(f"Relevance Score: {relevance}")
