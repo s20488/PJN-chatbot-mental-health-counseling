@@ -40,7 +40,8 @@ tokenizer.padding_side = "right"
 
 # Run text generation pipeline with our next model
 prompt = "How can I get to a place where I can be content from day to day?"
-pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, temperature=0.7, top_p=0.9, no_repeat_ngram_size=2)
+pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, temperature=0.7, top_p=0.9, no_repeat_ngram_size=2,
+    stop_token="<|endoftext|>")
 result = pipe(f"<s>[INST] {prompt} [/INST]")
 generated_text = result[0]["generated_text"]
 print(f"Generated Text: {generated_text}")
