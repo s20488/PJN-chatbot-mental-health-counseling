@@ -13,8 +13,8 @@ from transformers import (
 from peft import LoraConfig, PeftModel
 from trl import SFTTrainer
 
-model_name = "NousResearch/Llama-2-7b-chat-hf"
-new_model = "Llama-2-7b-chat-finetune-qlora"
+model_name = "meta-llama/Llama-3.2-1B"
+new_model = "Llama-3.2-1B-finetune-qlora"
 
 lora_r = 64  # lora attention dimension/ rank
 lora_alpha = 16  # lora scaling parameter
@@ -26,7 +26,7 @@ bnb_4bit_quant_type = "nf4"
 use_nested_quant = False
 
 # output directory where the model predictions and checkpoints will be stored
-output_dir = "./results"
+output_dir = "./results1"
 
 # number of training epochs
 num_train_epochs = 5
@@ -170,12 +170,3 @@ trainer.train()
 
 # Save trained model
 trainer.model.save_pretrained(new_model)
-
-# Ignore warnings
-logging.set_verbosity(logging.CRITICAL)
-
-# Run text generation pipeline with our next model
-prompt = "How can I get to a place where I can be content from day to day?"
-pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, torch_dtype=torch.bfloat16)
-result = pipe(f"<s>[INST] {prompt} [/INST]", dtype=torch.bfloat16)
-print(result[0]["generated_text"])
