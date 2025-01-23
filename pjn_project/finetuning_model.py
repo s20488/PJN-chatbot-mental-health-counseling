@@ -153,7 +153,6 @@ training_arguments = TrainingArguments(
     warmup_ratio=warmup_ratio,
     group_by_length=group_by_length,
     max_steps=max_steps,
-    report_to="tensorboard",
 )
 
 # SFT Trainer
