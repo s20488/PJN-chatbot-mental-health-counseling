@@ -33,11 +33,13 @@ if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = 'right'
 
+# Установим max_length для токенизации
+max_length = 1024  # Задано разумное ограничение длины токенов
+
 # Шаг 3: Предобработка данных
-def preprocess_data_with_dynamic_length(example):
+def preprocess_data_with_max_length(example):
     """
     Преобразует каждый пример в формат подсказок с токенами <|im_start|> и <|im_end|>.
-    Автоматически рассчитывает длину для каждого примера.
     """
     formatted_prompt = (
         f"<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
@@ -46,8 +48,9 @@ def preprocess_data_with_dynamic_length(example):
     )
     tokenized = tokenizer(
         formatted_prompt,
-        truncation=True,  # Урезает слишком длинные примеры
-        padding="longest",  # Автоматически добавляет паддинг к самой длинной строке в батче
+        truncation=True,  # Урезаем текст, если он превышает max_length
+        padding="max_length",  # Паддинг до max_length
+        max_length=max_length  # Максимальная длина токенов
     )
     return {
         "input_ids": tokenized["input_ids"],
@@ -55,8 +58,8 @@ def preprocess_data_with_dynamic_length(example):
     }
 
 # Обработка тренировочного и валидационного датасетов
-train_dataset = train_dataset.map(preprocess_data_with_dynamic_length, batched=True)
-validation_dataset = validation_dataset.map(preprocess_data_with_dynamic_length, batched=True)
+train_dataset = train_dataset.map(preprocess_data_with_max_length, batched=True)
+validation_dataset = validation_dataset.map(preprocess_data_with_max_length, batched=True)
 
 # Шаг 4: Загрузка модели
 model = AutoModelForCausalLM.from_pretrained(
