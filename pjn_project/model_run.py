@@ -69,7 +69,7 @@ def calculate_bleu(reference, candidate):
     candidate_tokens = candidate.split()
     return sentence_bleu(reference_tokens, candidate_tokens)
 
-file_path = 'responses.json'
+file_path = 'combined_dataset.json'
 with open(file_path, 'r', encoding='utf-8') as file:
     data = json.load(file)
 
