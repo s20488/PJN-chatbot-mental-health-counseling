@@ -7,7 +7,7 @@ base_model = "JackFram/llama-68m"
 model = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.float16)
 
 # Загрузка адаптера (укажи правильный путь к адаптеру)
-adapter_path = "./llama_mental_health_adapter"  # Обнови путь, если адаптер сохранён в другом месте
+adapter_path = "./llama_mental_health_adapter_test"  # Обнови путь, если адаптер сохранён в другом месте
 model = PeftModel.from_pretrained(model, adapter_path)
 
 # Перевод модели в режим оценки
