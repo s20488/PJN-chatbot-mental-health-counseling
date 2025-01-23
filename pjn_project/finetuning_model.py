@@ -4,7 +4,7 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
 import numpy as np
-from trl import SFTTrainer, SFTConfig  # Импортируем SFTTrainer и SFTConfig
+from trl import SFTTrainer, SFTConfig, DPOTrainer  # Импортируем SFTTrainer, SFTConfig и DPOTrainer
 
 # Установка seed для воспроизводимости
 random.seed(42)
@@ -69,31 +69,31 @@ peft_config = LoraConfig(
 
 model = get_peft_model(model, peft_config)
 
-# Шаг 6: Настройка гиперпараметров обучения
-training_args = SFTConfig(
-    learning_rate=5e-5,  # Уменьшение скорости обучения
-    per_device_train_batch_size=128,  # Оставляем размер батча
+# Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
+sft_training_args = SFTConfig(
+    learning_rate=3e-5,  # Умеренная скорость обучения для стабильного обучения
+    per_device_train_batch_size=128,  # Увеличение размера батча для более эффективного использования GPU
     per_device_eval_batch_size=128,
-    gradient_accumulation_steps=16,
+    gradient_accumulation_steps=4,  # Уменьшение количества шагов накопления градиентов
     lr_scheduler_type="cosine",
-    num_train_epochs=200,  # Уменьшение количества эпох до 100
+    num_train_epochs=50,  # Уменьшение количества эпох для ускорения обучения
     logging_strategy="steps",
     save_strategy="steps",
     eval_strategy="steps",
-    logging_steps=5,
-    eval_steps=5,
-    save_steps=5,
-    warmup_steps=50,
+    logging_steps=10,  # Увеличение интервала логирования
+    eval_steps=10,
+    save_steps=10,
+    warmup_steps=100,  # Увеличение количества шагов разогрева
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     greater_is_better=False,
     weight_decay=0.01,
-    save_total_limit=10,
+    save_total_limit=5,  # Уменьшение количества сохраняемых моделей
     output_dir="./llama_results_test",
     overwrite_output_dir=True,
     logging_dir="./logs",
     seed=42,
-    dataloader_num_workers=24,
+    dataloader_num_workers=24,  # Увеличение количества рабочих потоков для ускорения загрузки данных
     report_to=[],
     dataloader_pin_memory=True
 )
@@ -105,11 +105,11 @@ data_collator = DataCollatorForLanguageModeling(
 )
 
 # Шаг 8: Создание SFTTrainer
-trainer = SFTTrainer(
+sft_trainer = SFTTrainer(
     model=model,
     train_dataset=train_dataset,
     eval_dataset=validation_dataset,
-    args=training_args,
+    args=sft_training_args,
     data_collator=data_collator,
     callbacks=[
         EarlyStoppingCallback(
@@ -119,10 +119,54 @@ trainer = SFTTrainer(
     ],
 )
 
-# Шаг 9: Обучение модели
-trainer.train()
+# Шаг 9: Обучение модели с помощью SFTTrainer
+sft_trainer.train()
 
-# Шаг 10: Сохранение дообученного адаптера
+# Шаг 10: Настройка гиперпараметров обучения для DPOTrainer
+dpo_training_args = TrainingArguments(
+    learning_rate=3e-5,  # Умеренная скорость обучения
+    per_device_train_batch_size=32,  # Максимальное увеличение размера батча
+    per_device_eval_batch_size=32,
+    gradient_accumulation_steps=2,  # Уменьшение количества шагов накопления градиентов
+    lr_scheduler_type="cosine",
+    num_train_epochs=5,  # Увеличение количества эпох для более тщательного обучения
+    logging_strategy="steps",
+    save_strategy="steps",
+    evaluation_strategy="steps",
+    logging_steps=10,  # Увеличение интервала логирования
+    eval_steps=10,
+    save_steps=10,
+    warmup_steps=100,  # Увеличение количества шагов разогрева
+    load_best_model_at_end=True,
+    metric_for_best_model="eval_loss",
+    greater_is_better=False,
+    weight_decay=0.01,
+    neftune_noise_alpha=5,
+    remove_unused_columns=False,
+)
+
+# Шаг 11: Создание DPOTrainer
+dpo_trainer = DPOTrainer(
+    model=model,
+    beta=0.1,
+    train_dataset=train_dataset,
+    tokenizer=tokenizer,
+    eval_dataset=validation_dataset,
+    max_length=1536,
+    max_prompt_length=1024,
+    args=dpo_training_args,
+    callbacks=[
+        EarlyStoppingCallback(
+            early_stopping_patience=3,
+            early_stopping_threshold=0.005
+        ),
+    ],
+)
+
+# Шаг 12: Обучение модели с помощью DPOTrainer
+dpo_trainer.train()
+
+# Шаг 13: Сохранение дообученного адаптера
 adapter_save_path = "./llama_mental_health_adapter_test"
 model.save_pretrained(adapter_save_path)
 tokenizer.save_pretrained(adapter_save_path)
