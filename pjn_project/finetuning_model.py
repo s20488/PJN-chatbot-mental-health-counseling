@@ -42,6 +42,7 @@ def preprocess_data(example):
         "labels": tokenizer(
             example["Response"], truncation=True, padding="max_length", max_length=512
         )["input_ids"],
+        "prompt": example["Context"]  # Добавляем ключ 'prompt' для DPOTrainer
     }
 
 train_dataset = train_dataset.map(preprocess_data, batched=True)
@@ -84,7 +85,7 @@ sft_training_args = SFTConfig(
     per_device_eval_batch_size=128,
     gradient_accumulation_steps=1,  # Уменьшение количества шагов накопления градиентов для более частого обновления параметров
     lr_scheduler_type="cosine",
-    num_train_epochs=1,  # Уменьшение количества эпох для ускорения обучения
+    num_train_epochs=20,  # Уменьшение количества эпох для ускорения обучения
     logging_strategy="steps",
     save_strategy="steps",
     eval_strategy="steps",  # Используем eval_strategy вместо evaluation_strategy
