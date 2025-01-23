@@ -28,7 +28,7 @@ input_ids = tokenizer(input_text, return_tensors="pt").input_ids.to(device)
 with torch.no_grad():
     output = model.generate(
         input_ids,
-        max_length=512,
+        max_length=50,
         temperature=0.7,  # Управляет разнообразием ответов
         top_k=2,  # Использует только 2 вероятных токена
         repetition_penalty=1.0016,  # Штраф за повторение
