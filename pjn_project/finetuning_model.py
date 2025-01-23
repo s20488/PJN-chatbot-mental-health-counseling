@@ -179,5 +179,3 @@ prompt = "How can I get to a place where I can be content from day to day?"
 pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, torch_dtype=torch.bfloat16)
 result = pipe(f"<s>[INST] {prompt} [/INST]", dtype=torch.bfloat16)
 print(result[0]["generated_text"])
-
-
