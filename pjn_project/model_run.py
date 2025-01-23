@@ -14,6 +14,7 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 import spacy
 
 from nltk.translate.bleu_score import sentence_bleu
+from nltk.translate.bleu_score import corpus_bleu
 
 # Загружаем необходимые ресурсы для VADER
 nltk.download('vader_lexicon')
@@ -69,16 +70,24 @@ def calculate_bleu(reference, candidate):
     candidate_tokens = candidate.split()
     return sentence_bleu(reference_tokens, candidate_tokens)
 
+
+def calculate_bleu(references, candidates):
+    reference_tokens = [[ref.split()] for ref in references]
+    candidate_tokens = [cand.split() for cand in candidates]
+    return corpus_bleu(reference_tokens, candidate_tokens)
+
 file_path = 'combined_dataset.json'
 result = [{"generated_text": "Your generated response here"}]
 generated_text = result[0]["generated_text"]
 
 with open(file_path, 'r', encoding='utf-8') as file:
-    for line in file:
-        data = json.loads(line)
-        reference_response = data['Response']
-        bleu_score = calculate_bleu(reference_response, generated_text)
-        print(f"BLEU score: {bleu_score}")
+    data = [json.loads(line) for line in file]
+
+references = [item['Response'] for item in data]
+candidates = [generated_text for _ in data]
+
+bleu_score = calculate_bleu(references, candidates)
+print(f"BLEU score: {bleu_score}")
 
 # Метрика Perplexity
 def calculate_perplexity(text):
