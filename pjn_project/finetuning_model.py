@@ -69,6 +69,14 @@ peft_config = LoraConfig(
 
 model = get_peft_model(model, peft_config)
 
+# Создание копии модели для ref_model
+ref_model = AutoModelForCausalLM.from_pretrained(
+    base_model,
+    device_map="auto",
+    torch_dtype=torch.float16
+)
+ref_model = get_peft_model(ref_model, peft_config)
+
 # Шаг 6: Настройка гиперпараметров обучения для SFTTrainer
 sft_training_args = SFTConfig(
     learning_rate=1e-4,  # Увеличение скорости обучения для более быстрого обучения
@@ -149,7 +157,7 @@ dpo_training_args = DPOConfig(
 # Шаг 11: Создание DPOTrainer с использованием processing_class вместо tokenizer
 dpo_trainer = DPOTrainer(
     model=model,
-    ref_model=model,  # Указание модели для расчета имплицитных наград
+    ref_model=ref_model,  # Используем копию модели для ref_model
     args=dpo_training_args,
     processing_class=tokenizer,  # Используем processing_class вместо tokenizer
     train_dataset=train_dataset,
