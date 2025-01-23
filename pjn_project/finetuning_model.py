@@ -137,9 +137,9 @@ sft_trainer.train()
 dpo_training_args = DPOConfig(
     output_dir="./dpo_results_test",  # Указание директории для сохранения результатов
     learning_rate=3e-5,  # Скорость обучения, аналогичная SFTConfig
-    per_device_train_batch_size=128,  # Размер батча, аналогичный SFTConfig
-    per_device_eval_batch_size=128,
-    gradient_accumulation_steps=1,  # Количество шагов накопления градиентов, аналогичное SFTConfig
+    per_device_train_batch_size=64,  # Размер батча, аналогичный SFTConfig
+    per_device_eval_batch_size=64,
+    gradient_accumulation_steps=2,  # Количество шагов накопления градиентов, аналогичное SFTConfig
     lr_scheduler_type="cosine",
     num_train_epochs=100,  # Количество эпох, аналогичное SFTConfig
     logging_strategy="steps",
