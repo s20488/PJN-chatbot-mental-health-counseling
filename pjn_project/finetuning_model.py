@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, EarlyStoppingCallback, DataCollatorForLanguageModeling
+from transformers import AutoModelForCausalLM, AutoTokenizer, DataCollatorForLanguageModeling
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
@@ -26,7 +26,7 @@ print(f"Train size: {len(train_dataset)}, Validation size: {len(validation_datas
 
 # Шаг 2: Загрузка токенизатора
 base_model = "JackFram/llama-68m"
-tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False, legacy=False)
+tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
 
 # Установим pad_token и padding_side, чтобы избежать ошибок
 if tokenizer.pad_token is None:
@@ -34,10 +34,10 @@ if tokenizer.pad_token is None:
 tokenizer.padding_side = 'right'
 
 # Установим max_length для токенизации
-max_length = 1024  # Задано разумное ограничение длины токенов
+max_length = 1024  # Задаем фиксированную максимальную длину токенов
 
 # Шаг 3: Предобработка данных
-def preprocess_data_with_max_length(example):
+def preprocess_data_with_fixed_length(example):
     """
     Преобразует каждый пример в формат подсказок с токенами <|im_start|> и <|im_end|>.
     """
@@ -52,14 +52,18 @@ def preprocess_data_with_max_length(example):
         padding="max_length",  # Паддинг до max_length
         max_length=max_length  # Максимальная длина токенов
     )
+    # Гарантируем, что все длины будут строго соответствовать max_length
+    input_ids = tokenized["input_ids"]
+    if len(input_ids) < max_length:
+        input_ids = input_ids + [tokenizer.pad_token_id] * (max_length - len(input_ids))
     return {
-        "input_ids": tokenized["input_ids"],
-        "labels": tokenized["input_ids"],  # Совпадает с input_ids для CausalLM
+        "input_ids": input_ids,
+        "labels": input_ids,  # Совпадает с input_ids для CausalLM
     }
 
 # Обработка тренировочного и валидационного датасетов
-train_dataset = train_dataset.map(preprocess_data_with_max_length, batched=True)
-validation_dataset = validation_dataset.map(preprocess_data_with_max_length, batched=True)
+train_dataset = train_dataset.map(preprocess_data_with_fixed_length, batched=True)
+validation_dataset = validation_dataset.map(preprocess_data_with_fixed_length, batched=True)
 
 # Шаг 4: Загрузка модели
 model = AutoModelForCausalLM.from_pretrained(
