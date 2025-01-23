@@ -1,9 +1,10 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, EarlyStoppingCallback, DataCollatorForLanguageModeling
+from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, EarlyStoppingCallback, DataCollatorForLanguageModeling
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
 import numpy as np
+from trl import SFTTrainer  # Импортируем SFTTrainer
 
 # Установка seed для воспроизводимости
 random.seed(42)
@@ -31,7 +32,6 @@ tokenizer = AutoTokenizer.from_pretrained(base_model, use_fast=False)
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 
-
 # Шаг 3: Предобработка данных
 def preprocess_data(example):
     return {
@@ -42,7 +42,6 @@ def preprocess_data(example):
             example["Response"], truncation=True, padding="max_length", max_length=512
         )["input_ids"],
     }
-
 
 train_dataset = train_dataset.map(preprocess_data, batched=True)
 validation_dataset = validation_dataset.map(preprocess_data, batched=True)
@@ -71,28 +70,31 @@ model = get_peft_model(model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения
 training_args = TrainingArguments(
+    learning_rate=2e-6,
+    per_device_train_batch_size=1,
+    per_device_eval_batch_size=1,
+    gradient_accumulation_steps=16,
+    lr_scheduler_type="cosine",
+    num_train_epochs=1,
+    logging_strategy="steps",
+    save_strategy="steps",
+    evaluation_strategy="steps",
+    logging_steps=10,
+    eval_steps=10,
+    save_steps=10,
+    warmup_steps=50,
+    load_best_model_at_end=True,
+    metric_for_best_model="eval_loss",
+    greater_is_better=False,
+    weight_decay=0.01,
+    save_total_limit=10,
     output_dir="./llama_results_test",
     overwrite_output_dir=True,
-    per_device_train_batch_size=128,
-    per_device_eval_batch_size=128,
-    learning_rate=5e-5,
-    num_train_epochs=200,
     logging_dir="./logs",
-    logging_steps=100,
-    eval_strategy="steps",
-    save_steps=500,
-    eval_steps=500,
-    save_total_limit=3,
-    warmup_ratio=0.2,
-    lr_scheduler_type="cosine",
-    fp16=True,
     seed=42,
     dataloader_num_workers=24,
     report_to=[],
-    load_best_model_at_end=True,
-    dataloader_pin_memory=True,
-    gradient_accumulation_steps=2,  # Увеличение эффективного размера батча
-    weight_decay=0.01  # Регуляризация весов
+    dataloader_pin_memory=True
 )
 
 # Шаг 7: Создание DataCollator
@@ -101,15 +103,22 @@ data_collator = DataCollatorForLanguageModeling(
     mlm=False
 )
 
-# Шаг 8: Создание Trainer
-trainer = Trainer(
+# Шаг 8: Создание SFTTrainer
+trainer = SFTTrainer(
     model=model,
-    args=training_args,
     train_dataset=train_dataset,
+    dataset_text_field="text",
     eval_dataset=validation_dataset,
-    tokenizer=tokenizer,
+    max_seq_length=2048,
+    packing=True,
+    args=training_args,
     data_collator=data_collator,
-    callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+    callbacks=[
+        EarlyStoppingCallback(
+            early_stopping_patience=3,
+            early_stopping_threshold=0.005
+        ),
+    ],
 )
 
 # Шаг 9: Обучение модели

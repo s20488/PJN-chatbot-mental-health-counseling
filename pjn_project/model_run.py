@@ -28,11 +28,11 @@ input_ids = tokenizer(input_text, return_tensors="pt").input_ids.to(device)
 with torch.no_grad():
     output = model.generate(
         input_ids,
-        max_length=512,
-        temperature=0.7,        # Управляет разнообразием ответов
-        top_k=4,                # Использует только 4 вероятных токена
-        repetition_penalty=1.2, # Штраф за повторение
-        do_sample=True          # Включает сэмплирование
+        max_length=50,
+        temperature=0.7,  # Управляет разнообразием ответов
+        top_k=2,  # Использует только 2 вероятных токена
+        repetition_penalty=1.0016,  # Штраф за повторение
+        do_sample=True  # Включает сэмплирование
     )
 
 # Расшифровка и вывод результата
