@@ -4,7 +4,7 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import random
 import numpy as np
-from trl import SFTTrainer, SFTConfig, ConstantLengthDataset  # Импортируем ConstantLengthDataset
+from trl import SFTTrainer, SFTConfig  # Импортируем SFTTrainer и SFTConfig
 
 # Установка seed для воспроизводимости
 random.seed(42)
@@ -49,29 +49,14 @@ validation_dataset = validation_dataset.map(preprocess_data, batched=True)
 train_dataset = train_dataset.remove_columns(["Context", "Response"])
 validation_dataset = validation_dataset.remove_columns(["Context", "Response"])
 
-# Шаг 4: Создание ConstantLengthDataset для упаковки данных
-train_dataset = ConstantLengthDataset(
-    dataset=train_dataset,
-    tokenizer=tokenizer,
-    max_length=2048,
-    pad_to_multiple_of=8
-)
-
-validation_dataset = ConstantLengthDataset(
-    dataset=validation_dataset,
-    tokenizer=tokenizer,
-    max_length=2048,
-    pad_to_multiple_of=8
-)
-
-# Шаг 5: Загрузка модели
+# Шаг 4: Загрузка модели
 model = AutoModelForCausalLM.from_pretrained(
     base_model,
     device_map="auto",
     torch_dtype=torch.float16
 )
 
-# Шаг 6: Настройка PEFT (LoRA)
+# Шаг 5: Настройка PEFT (LoRA)
 peft_config = LoraConfig(
     r=8,
     lora_alpha=16,
@@ -83,7 +68,7 @@ peft_config = LoraConfig(
 
 model = get_peft_model(model, peft_config)
 
-# Шаг 7: Настройка гиперпараметров обучения
+# Шаг 6: Настройка гиперпараметров обучения
 training_args = SFTConfig(
     learning_rate=2e-6,
     per_device_train_batch_size=1,
@@ -112,13 +97,13 @@ training_args = SFTConfig(
     dataloader_pin_memory=True
 )
 
-# Шаг 8: Создание DataCollator
+# Шаг 7: Создание DataCollator
 data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
     mlm=False
 )
 
-# Шаг 9: Создание SFTTrainer
+# Шаг 8: Создание SFTTrainer
 trainer = SFTTrainer(
     model=model,
     train_dataset=train_dataset,
@@ -133,10 +118,10 @@ trainer = SFTTrainer(
     ],
 )
 
-# Шаг 10: Обучение модели
+# Шаг 9: Обучение модели
 trainer.train()
 
-# Шаг 11: Сохранение дообученного адаптера
+# Шаг 10: Сохранение дообученного адаптера
 adapter_save_path = "./llama_mental_health_adapter_test"
 model.save_pretrained(adapter_save_path)
 tokenizer.save_pretrained(adapter_save_path)
