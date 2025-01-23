@@ -163,7 +163,6 @@ trainer = SFTTrainer(
     peft_config=peft_config,
     args=training_arguments,
     processing_class=tokenizer,
-    packing=packing,
 )
 
 # Start training
