@@ -124,6 +124,7 @@ sft_trainer.train()
 
 # Шаг 10: Настройка гиперпараметров обучения для DPOTrainer
 dpo_training_args = TrainingArguments(
+    output_dir="./dpo_results_test",
     learning_rate=5e-5,  # Умеренная скорость обучения
     per_device_train_batch_size=32,  # Максимальное увеличение размера батча
     per_device_eval_batch_size=32,
