@@ -42,9 +42,8 @@ tokenizer.padding_side = "right"
 prompt = "How can I get to a place where I can be content from day to day?"
 pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200)
 result = pipe(f"<s>[INST] {prompt} [/INST]")
-print(result[0]["generated_text"])
-
 generated_text = result[0]["generated_text"]
+print(f"Generated Text: {generated_text}")
 
 # Метрика BLEU
 bleu_metric = evaluate.load("bleu")
@@ -57,7 +56,6 @@ predictions = [generated_text]
 bleu_score = bleu_metric.compute(predictions=predictions, references=[references])
 print(f"BLEU score: {bleu_score['bleu']}")
 
-# Метрика Perplexity
 # Метрика Perplexity
 def calculate_perplexity(text):
     encodings = tokenizer(text, return_tensors='pt')
@@ -81,7 +79,6 @@ def calculate_perplexity(text):
 
     ppl = torch.exp(torch.stack(lls).sum() / end_loc)
     return ppl.item()
-
 
 perplexity_score = calculate_perplexity(generated_text)
 print(f"Perplexity: {perplexity_score}")
