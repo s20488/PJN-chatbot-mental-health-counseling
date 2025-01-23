@@ -70,17 +70,18 @@ model = get_peft_model(model, peft_config)
 
 # Шаг 6: Настройка гиперпараметров обучения
 training_args = SFTConfig(
-    learning_rate=2e-6,
-    per_device_train_batch_size=128,
+    learning_rate=2e-5,  # Уменьшение скорости обучения
+    per_device_train_batch_size=128,  # Оставляем размер батча
     per_device_eval_batch_size=128,
+    gradient_accumulation_steps=16,
     lr_scheduler_type="cosine",
-    num_train_epochs=200,
+    num_train_epochs=200,  # Уменьшение количества эпох до 100
     logging_strategy="steps",
     save_strategy="steps",
-    logging_steps=100,
     eval_strategy="steps",
-    save_steps=500,
-    eval_steps=500,
+    logging_steps=100,
+    eval_steps=100,
+    save_steps=100,
     warmup_steps=50,
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
