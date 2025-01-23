@@ -53,7 +53,7 @@ tokenizer.padding_side = "right"
 # Run text generation pipeline with our next model
 prompt = "How can I get to a place where I can be content from day to day?"
 pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, temperature=0.6, top_p=0.85,
-                no_repeat_ngram_size=2, eos_token_id=tokenizer.eos_token_id)
+                no_repeat_ngram_size=2, eos_token_id=tokenizer.eos_token_id, do_sample=True)
 result = pipe(f"<s>[INST] {prompt} [/INST]")
 
 generated_text = result[0]["generated_text"]
