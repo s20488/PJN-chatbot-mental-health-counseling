@@ -1,3 +1,5 @@
+import json
+
 import torch
 from transformers import (
     AutoTokenizer,
@@ -10,6 +12,8 @@ import evaluate
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 import spacy
+
+from nltk.translate.bleu_score import sentence_bleu
 
 # Загружаем необходимые ресурсы для VADER
 nltk.download('vader_lexicon')
@@ -60,18 +64,18 @@ generated_text = result[0]["generated_text"]
 print(f"Generated Text: {generated_text}")
 
 # Метрика BLEU
-bleu_metric = evaluate.load("bleu")
-references = [
-    [
-        "Your question is a fascinating one! As humans we have the ability to reflect on situations in our lives. Even if nothing currently goes on in a particular moment, it’s possible you’re reflecting on a serious or upsetting matter. And, our emotions linger within us. Just because a particular moment feels calm, inside your feelings may be the sense of a strong unsettled emotion from the recent past. Good for you to be aware of your own sensitivity to living with awareness of your moods and thoughts."],
-    [
-        "One thing that comes to mind is making a list of some things that happen each day. It could be that there are things that are affecting how upset you are, but because so many other things are going on, you may not notice. Another idea to try is to keep a list for a month of one good thing that happened each day. This way, when you're having a rough day, you have a list to think of and take a look at. Are you eating and sleeping in ways that are typical for you (typically at least two meals per day and roughly 8 hours of sleep that night (may be different depending on your age)? These two ideas are closely related to changes in your mood. From where do you have support? Friends or family? Can you take 5 or 10 minutes per day to do something that you enjoy? If you think back to the last time that you felt \"content,\" what was contributing to that? Another possibility is to try to be mindful of things that you do every day. For example, rather than eating a turkey sandwich as fast as possible on your lunch break, consider actually tasting it and enjoying it. Also consider giving yourself praise for doing something well. For example, when you finish your paperwork, take a moment to notice that and maybe reward yourself by checking your e-mail, reading five pages of a book, or something else that can be done quickly before you get back to your next task."],
-    [
-        "It's important to take a look inside and see what's going on with you to cause you to have these feelings. Please contact us in whatever way is most comfortable for you and we can get you set up with someone who will help you figure out this space in your life."]
-]
-predictions = [generated_text]
-bleu_score = bleu_metric.compute(predictions=predictions, references=[references])
-print(f"BLEU score: {bleu_score['bleu']}")
+def calculate_bleu(reference, candidate):
+    reference_tokens = [reference.split()]
+    candidate_tokens = candidate.split()
+    return sentence_bleu(reference_tokens, candidate_tokens)
+
+file_path = 'responses.json'
+with open(file_path, 'r', encoding='utf-8') as file:
+    data = json.load(file)
+
+generated_text = result[0]["generated_text"]
+bleu_score = calculate_bleu(data['Response'], generated_text)
+print(f"BLEU score: {bleu_score}")
 
 # Метрика Perplexity
 def calculate_perplexity(text):
