@@ -8,7 +8,6 @@ from transformers import (
 )
 from peft import LoraConfig
 from trl import SFTTrainer
-import logging
 
 # Select the model to fine-tune
 model_name = "JackFram/llama-68m"
