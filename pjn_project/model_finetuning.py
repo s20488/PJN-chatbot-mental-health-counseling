@@ -25,25 +25,6 @@ new_model = "llama-68m-finetune-qlora"
 
 output_dir = f"./results-{new_model}"
 
-# ----------------------------------------------------------------------------
-# Zbiór danych:
-# - Liczba tekstów - 3,512
-# - Format - JSON
-# - Anotacje - Każda próbka zawiera dwie kolumny tekstowe: "Context" i "Response"
-#
-# Podział na zbiór train, val i test:
-# - train_dataset – 80% danych.
-# - val_dataset – 10% danych.
-# - test_dataset – 10% danych.
-#
-# Przetwarzanie wstępne:
-# Funkcja preprocess_function łączy dwa elementy - Context i Response -
-# w jeden ciąg tekstowy, dodając odpowiednie metki, takie jak "<s>[INST]...[/INST] </s>"
-#
-# Augmentacja danych:
-# - Brak
-# ----------------------------------------------------------------------------
-
 # Załaduj zbiór danych z pliku combined_dataset.json
 dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
 
@@ -71,19 +52,6 @@ bnb_config = BitsAndBytesConfig(
     bnb_4bit_compute_dtype=getattr(torch, "float16"),  # Załaduj tokenizer i model z konfiguracją QLoRA
     bnb_4bit_use_double_quant=False,
 )
-
-# ----------------------------------------------------------------------------
-# Model i architektura:
-# Architektura - Transformer
-# Użyty model - Llama-2-7b-chat-hf/Llama-3.2-1B-Instruct/llama-68m
-#
-# Modyfikacje i dostrojenie modelu:
-# 1. LoRA - technika adaptacji dużych modeli do specyficznych zadań
-#    przy minimalnym koszcie obliczeniowym
-# 2. Kwantowanie 4-bitowe - zmniejszenie rozmiaru modelu, oszczędność pamięci
-#    i przyspieszenie obliczeń
-# 4. Użycie SFTTrainer - fine-tuning modelu w zadaniach generowania tekstu
-# ----------------------------------------------------------------------------
 
 # Załaduj bazowy model
 model = AutoModelForCausalLM.from_pretrained(
