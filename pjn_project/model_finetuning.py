@@ -10,10 +10,6 @@ from peft import LoraConfig
 from trl import SFTTrainer
 import logging
 
-# Logowanie
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 # model_name = "NousResearch/Llama-2-7b-chat-hf"
 # new_model = "Llama-2-7b-chat-finetune-qlora"
 
