@@ -1,5 +1,4 @@
 import json
-
 import torch
 from transformers import (
     AutoTokenizer,
@@ -8,8 +7,13 @@ from transformers import (
     logging,
 )
 from peft import PeftModel
-from chatbot_mental_health_counseling.metrics import calculate_bleu, vader_empathy_score, dialog_quality_metrics, relevance_score, \
+from chatbot_mental_health_counseling.metrics import (
+    calculate_bleu,
+    vader_empathy_score,
+    dialog_quality_metrics,
+    relevance_score,
     calculate_perplexity
+)
 
 # model_name = "NousResearch/Llama-2-7b-chat-hf"
 # new_model = "Llama-2-7b-chat-finetune-qlora"
@@ -39,51 +43,76 @@ tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"
 
-# Run the text generation pipeline with the model
-prompt = "Every winter I find myself getting sad because of the weather. How can I fight this?"
-pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, temperature=0.6, top_p=0.85,
-                no_repeat_ngram_size=2, eos_token_id=tokenizer.eos_token_id, do_sample=True)
-result = pipe(f"<s>[INST] {prompt} [/INST]")
+# Create the text-generation pipeline
+pipe = pipeline(
+    task="text-generation",
+    model=model,
+    tokenizer=tokenizer,
+    max_length=200,
+    temperature=0.6,
+    top_p=0.85,
+    no_repeat_ngram_size=2,
+    eos_token_id=tokenizer.eos_token_id,
+    do_sample=True
+)
 
-generated_text = result[0]["generated_text"]
-print(f"Generated Text: {generated_text}")
-
-# BLEU
+# Load references (for BLEU)
 file_path = 'combined_dataset.json'
 with open(file_path, 'r', encoding='utf-8') as file:
     data = [json.loads(line) for line in file]
 
 references = [item['Response'] for item in data]
-candidates = [generated_text for _ in data]
 
-bleu_score = calculate_bleu(references, candidates)
-print(f"BLEU score: {bleu_score}")
+# Accumulators for metrics
+acc_bleu = 0.0
+acc_perplexity = 0.0
+acc_empathy = 0.0
+acc_dialog_quality = 0.0
+acc_relevance = 0.0
+count_prompts = 0
 
-# Perplexity Metric
-perplexity_score = calculate_perplexity(generated_text, tokenizer, model, {"": 0})
-print(f"Perplexity: {perplexity_score}")
+# Prompt input loop
+while True:
+    prompt = input("\nEnter your prompt (or 'quit'/'exit' to finish): ").strip()
+    if prompt.lower() in ["quit", "exit"]:
+        break
+    if not prompt:
+        continue
 
-# Empathy Score
-empathy_score = vader_empathy_score(generated_text)
-print(f"Empathy Score (VADER): {empathy_score}")
+    result = pipe(f"<s>[INST] {prompt} [/INST]")
+    generated_text = result[0]["generated_text"]
 
-# Dialog Quality Metrics
-dialog_metrics = dialog_quality_metrics(generated_text)
-print(f"Dialog Quality Metrics: {dialog_metrics}")
+    candidates = [generated_text for _ in data]
+    bleu_score = calculate_bleu(references, candidates)
+    perplexity_score = calculate_perplexity(generated_text, tokenizer, model, {"": 0})
+    empathy_score = vader_empathy_score(generated_text)
+    dq_score = dialog_quality_metrics(generated_text)
+    relevance = relevance_score(generated_text, prompt)
 
-# Relevance Score
-relevance = relevance_score(generated_text, prompt)
-print(f"Relevance Score: {relevance}")
+    acc_bleu += bleu_score
+    acc_perplexity += perplexity_score
+    acc_empathy += empathy_score
+    acc_dialog_quality += dq_score
+    acc_relevance += relevance
+    count_prompts += 1
 
-# Save metrics results to a file
-results_file_path = f'metrics-results-{new_model}.json'
-metrics_results = {
-    "bleu_score": bleu_score,
-    "perplexity_score": perplexity_score,
-    "empathy_score": empathy_score,
-    "dialog_quality_metrics": dialog_metrics,
-    "relevance_score": relevance
-}
+# Compute and save average metrics
+if count_prompts > 0:
+    avg_bleu = acc_bleu / count_prompts
+    avg_perplexity = acc_perplexity / count_prompts
+    avg_empathy = acc_empathy / count_prompts
+    avg_dialog_quality = acc_dialog_quality / count_prompts
+    avg_relevance = acc_relevance / count_prompts
+    average_metrics = {
+        "bleu_score": avg_bleu,
+        "perplexity_score": avg_perplexity,
+        "empathy_score": avg_empathy,
+        "dialog_quality_metrics": avg_dialog_quality,
+        "relevance_score": avg_relevance
+    }
+else:
+    average_metrics = {}
 
+results_file_path = f"metrics-results-{new_model}.json"
 with open(results_file_path, 'w', encoding='utf-8') as results_file:
-    json.dump(metrics_results, results_file, ensure_ascii=False, indent=4)
+    json.dump(average_metrics, results_file, ensure_ascii=False, indent=4)
