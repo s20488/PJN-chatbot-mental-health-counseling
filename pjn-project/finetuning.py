@@ -11,6 +11,7 @@ from transformers import (
 from peft import LoraConfig
 from trl import SFTTrainer
 
+os.environ["TMPDIR"] = "/mnt/data/tmp"
 os.environ["HF_DATASETS_CACHE"] = "/mnt/data/datasets_cache"
 os.environ["HF_HOME"] = "/mnt/data/huggingface_cache"
 
