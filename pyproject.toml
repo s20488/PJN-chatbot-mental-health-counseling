@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "pjn-project"
+name = "chatbot_mental_health_counseling"
 version = "0.1.0"
 description = ""
 authors = ["s20488 <s20488@pjwstk.edu.pl>"]
