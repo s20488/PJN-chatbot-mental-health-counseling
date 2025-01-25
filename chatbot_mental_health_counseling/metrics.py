@@ -5,8 +5,8 @@ import spacy
 import torch
 
 
-# nltk.download('vader_lexicon')
-# nlp = spacy.load("en_core_web_sm")
+nltk.download('vader_lexicon')
+nlp = spacy.load("en_core_web_sm")
 
 
 # BLEU Metric
