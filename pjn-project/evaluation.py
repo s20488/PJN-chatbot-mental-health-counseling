@@ -61,7 +61,7 @@ references = [item['Response'] for item in data]
 acc_bleu = 0.0
 acc_perplexity = 0.0
 acc_empathy = 0.0
-acc_dialog_quality = 0.0
+avg_dialog_quality = None
 acc_relevance = 0.0
 count_prompts = 0
 
@@ -86,7 +86,7 @@ while True:
     acc_bleu += bleu_score
     acc_perplexity += perplexity_score
     acc_empathy += empathy_score
-    acc_dialog_quality += dq_score
+    avg_dialog_quality = dq_score
     acc_relevance += relevance
     count_prompts += 1
 
@@ -95,7 +95,6 @@ if count_prompts > 0:
     avg_bleu = acc_bleu / count_prompts
     avg_perplexity = acc_perplexity / count_prompts
     avg_empathy = acc_empathy / count_prompts
-    avg_dialog_quality = acc_dialog_quality / count_prompts
     avg_relevance = acc_relevance / count_prompts
     average_metrics = {
         "bleu_score": avg_bleu,
