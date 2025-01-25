@@ -10,8 +10,14 @@ from peft import LoraConfig
 from trl import SFTTrainer
 
 # Select the model to fine-tune
-model_name = "JackFram/llama-68m"
-new_model = "llama-68m-finetune-qlora"
+# model_name = "NousResearch/Llama-2-7b-chat-hf"
+# new_model = "Llama-2-7b-chat-finetune-qlora"
+#
+model_name = "unsloth/Llama-3.2-1B-Instruct"
+new_model = "Llama-3.2-1B-Instruct-finetune-qlora"
+#
+# model_name = "JackFram/llama-68m"
+# new_model = "llama-68m-finetune-qlora"
 
 output_dir = f"./results-{new_model}"
 
