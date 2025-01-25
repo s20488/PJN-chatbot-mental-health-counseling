@@ -75,6 +75,7 @@ while True:
 
     result = pipe(f"<s>[INST] {prompt} [/INST]")
     generated_text = result[0]["generated_text"]
+    print(generated_text)
 
     candidates = [generated_text for _ in data]
     bleu_score = metrics.calculate_bleu(references, candidates)
