@@ -1,3 +1,5 @@
+import os
+
 import torch
 from datasets import load_dataset
 from transformers import (
@@ -8,6 +10,9 @@ from transformers import (
 )
 from peft import LoraConfig
 from trl import SFTTrainer
+
+os.environ["HF_DATASETS_CACHE"] = "/mnt/data/datasets_cache"
+os.environ["HF_HOME"] = "/mnt/data/huggingface_cache"
 
 # Select the model to fine-tune
 # model_name = "NousResearch/Llama-2-7b-chat-hf"
