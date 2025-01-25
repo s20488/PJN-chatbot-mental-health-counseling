@@ -8,7 +8,7 @@ from transformers import (
     logging,
 )
 from peft import PeftModel
-from pjn_project.metrics import calculate_bleu, vader_empathy_score, dialog_quality_metrics, relevance_score, \
+from chatbot_mental_health_counseling.metrics import calculate_bleu, vader_empathy_score, dialog_quality_metrics, relevance_score, \
     calculate_perplexity
 
 # model_name = "NousResearch/Llama-2-7b-chat-hf"
