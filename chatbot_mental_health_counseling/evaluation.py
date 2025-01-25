@@ -57,7 +57,7 @@ pipe = pipeline(
 )
 
 # Load references (for BLEU)
-file_path = 'combined_dataset.json'
+file_path = '../combined_dataset.json'
 with open(file_path, 'r', encoding='utf-8') as file:
     data = [json.loads(line) for line in file]
 
