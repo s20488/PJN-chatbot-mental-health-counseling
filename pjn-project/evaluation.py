@@ -7,13 +7,7 @@ from transformers import (
     logging,
 )
 from peft import PeftModel
-from chatbot_mental_health_counseling.metrics import (
-    calculate_bleu,
-    vader_empathy_score,
-    dialog_quality_metrics,
-    relevance_score,
-    calculate_perplexity
-)
+import metrics
 
 # model_name = "NousResearch/Llama-2-7b-chat-hf"
 # new_model = "Llama-2-7b-chat-finetune-qlora"
@@ -83,11 +77,11 @@ while True:
     generated_text = result[0]["generated_text"]
 
     candidates = [generated_text for _ in data]
-    bleu_score = calculate_bleu(references, candidates)
-    perplexity_score = calculate_perplexity(generated_text, tokenizer, model, {"": 0})
-    empathy_score = vader_empathy_score(generated_text)
-    dq_score = dialog_quality_metrics(generated_text)
-    relevance = relevance_score(generated_text, prompt)
+    bleu_score = metrics.calculate_bleu(references, candidates)
+    perplexity_score = metrics.calculate_perplexity(generated_text, tokenizer, model, {"": 0})
+    empathy_score = metrics.vader_empathy_score(generated_text)
+    dq_score = metrics.dialog_quality_metrics(generated_text)
+    relevance = metrics.relevance_score(generated_text, prompt)
 
     acc_bleu += bleu_score
     acc_perplexity += perplexity_score
