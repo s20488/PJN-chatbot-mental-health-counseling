@@ -32,11 +32,13 @@ train_dataset = train_val_split['train']
 val_dataset = train_val_split['test']
 test_dataset = train_test_split['test']
 
+
 # Preprocess the data by combining "Context" and "Response"
 def preprocess_function(examples):
     return {
         "text": f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>"
     }
+
 
 train_dataset = train_dataset.map(preprocess_function)
 val_dataset = val_dataset.map(preprocess_function)
