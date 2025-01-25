@@ -40,7 +40,7 @@ tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"
 
 # Run the text generation pipeline with the model
-prompt = "Every winter I find myself getting sad because of the weather. How can I fight this??"
+prompt = "Every winter I find myself getting sad because of the weather. How can I fight this?"
 pipe = pipeline(task="text-generation", model=model, tokenizer=tokenizer, max_length=200, temperature=0.6, top_p=0.85,
                 no_repeat_ngram_size=2, eos_token_id=tokenizer.eos_token_id, do_sample=True)
 result = pipe(f"<s>[INST] {prompt} [/INST]")
