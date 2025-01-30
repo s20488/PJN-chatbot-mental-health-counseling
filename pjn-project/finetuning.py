@@ -30,12 +30,6 @@ output_dir = f"./results-{new_model}"
 # Load the dataset
 dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
 
-# Split the dataset into train (80%), validation (10%), and test (10%) sets
-train_test_split = dataset.train_test_split(test_size=0.1)
-train_val_split = train_test_split['train'].train_test_split(test_size=0.1)
-
-train_dataset = train_val_split['train']
-
 
 # Preprocess the data by combining "Context" and "Response" to create instructions
 def preprocess_function(examples):
@@ -44,7 +38,7 @@ def preprocess_function(examples):
     }
 
 
-train_dataset = train_dataset.map(preprocess_function)
+dataset = dataset.map(preprocess_function)
 
 # 4-bit quantization configuration
 bnb_config = BitsAndBytesConfig(
