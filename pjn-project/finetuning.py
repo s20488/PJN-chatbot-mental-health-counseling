@@ -91,6 +91,7 @@ training_arguments = TrainingArguments(
     per_device_eval_batch_size=4,
     eval_strategy="epoch",
     save_strategy="epoch",
+    remove_unused_columns=False,
     gradient_accumulation_steps=1,
     optim="paged_adamw_32bit",
     save_steps=10,
