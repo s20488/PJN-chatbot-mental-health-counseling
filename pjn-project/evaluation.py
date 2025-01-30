@@ -55,17 +55,17 @@ pipe = pipeline(
 
 # Load references (for BLEU)
 file_path = '../combined_dataset.json'
-with open(file_path, 'r', encoding='utf-8') as file:
-    data = json.load(file)
-
 references_dict = {}
-for item in data:
-    context = item['Context']
-    response = item['Response']
 
-    if context not in references_dict:
-        references_dict[context] = []
-    references_dict[context].append(response)
+with open(file_path, 'r', encoding='utf-8') as file:
+    for line in file:
+        item = json.loads(line.strip())
+        context = item['Context']
+        response = item['Response']
+
+        if context not in references_dict:
+            references_dict[context] = []
+        references_dict[context].append(response)
 
 # Accumulators for metrics
 acc_bleu = 0.0
