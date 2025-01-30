@@ -70,7 +70,7 @@ model.config.use_cache = False
 model.config.pretraining_tp = 1
 
 # Load the tokenizer
-tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, legacy=False)
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"
 
@@ -89,7 +89,7 @@ training_arguments = TrainingArguments(
     num_train_epochs=5,
     per_device_train_batch_size=4,
     per_device_eval_batch_size=4,
-    evaluation_strategy="epoch",
+    eval_strategy="epoch",
     save_strategy="epoch",
     gradient_accumulation_steps=1,
     optim="paged_adamw_32bit",
