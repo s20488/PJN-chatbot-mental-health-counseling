@@ -110,7 +110,7 @@ trainer = SFTTrainer(
     eval_dataset=dataset['validation'],
     peft_config=peft_config,
     args=training_arguments,
-    processing_class=tokenizer,
+    tokenizer=tokenizer,
 )
 
 # Start training
