@@ -11,7 +11,7 @@ nlp = spacy.load("en_core_web_sm")
 
 # BLEU Metric
 def calculate_bleu(references, candidates):
-    reference_tokens = [[ref.split()] for ref in references]
+    reference_tokens = [[ref.split() for ref in refs] for refs in references]
     candidate_tokens = [cand.split() for cand in candidates]
     smoothing_function = SmoothingFunction().method1
     return corpus_bleu(reference_tokens, candidate_tokens, smoothing_function=smoothing_function)

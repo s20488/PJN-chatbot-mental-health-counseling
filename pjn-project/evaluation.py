@@ -56,9 +56,16 @@ pipe = pipeline(
 # Load references (for BLEU)
 file_path = '../combined_dataset.json'
 with open(file_path, 'r', encoding='utf-8') as file:
-    data = [json.loads(line) for line in file]
+    data = json.load(file)
 
-references = [item['Response'] for item in data]
+references_dict = {}
+for item in data:
+    context = item['Context']
+    response = item['Response']
+
+    if context not in references_dict:
+        references_dict[context] = []
+    references_dict[context].append(response)
 
 # Accumulators for metrics
 acc_bleu = 0.0
@@ -80,8 +87,12 @@ while True:
     generated_text = result[0]["generated_text"]
     print(generated_text)
 
-    candidates = [generated_text for _ in data]
-    bleu_score = metrics.calculate_bleu(references, candidates)
+    if prompt in references_dict:
+        references = [references_dict[prompt]]
+    else:
+        references = [[""]]
+
+    bleu_score = metrics.calculate_bleu(references, [generated_text])
     perplexity_score = metrics.calculate_perplexity(generated_text, tokenizer, model, {"": 0})
     empathy_score = metrics.vader_empathy_score(generated_text)
     dq_score = metrics.dialog_quality_metrics(generated_text)
