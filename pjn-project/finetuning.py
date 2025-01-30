@@ -78,7 +78,6 @@ training_arguments = TrainingArguments(
     output_dir=output_dir,
     num_train_epochs=5,
     per_device_train_batch_size=4,
-    per_device_eval_batch_size=4,
     gradient_accumulation_steps=1,
     optim="paged_adamw_32bit",
     save_steps=10,
@@ -98,7 +97,7 @@ training_arguments = TrainingArguments(
 # Initialize the trainer
 trainer = SFTTrainer(
     model=model,
-    train_dataset=train_dataset,
+    train_dataset=dataset,
     peft_config=peft_config,
     args=training_arguments,
     processing_class=tokenizer,
