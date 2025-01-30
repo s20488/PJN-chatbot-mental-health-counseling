@@ -99,7 +99,7 @@ training_arguments = TrainingArguments(
     group_by_length=True,
     max_steps=-1,
     logging_dir='./logs',
-    evaluation_strategy="steps",
+    eval_strategy="steps",
     eval_steps=10,
 )
 
