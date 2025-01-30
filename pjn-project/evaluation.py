@@ -122,7 +122,7 @@ trainer = SFTTrainer(
     train_dataset=None,
     eval_dataset=test_dataset,
     args=None,
-    tokenizer=tokenizer
+    processing_class=tokenizer
 )
 
 # Performing an evaluation
