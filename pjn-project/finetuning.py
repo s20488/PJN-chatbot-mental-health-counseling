@@ -120,5 +120,7 @@ trainer = SFTTrainer(
 # Start training
 trainer.train()
 
+test_dataset.save_to_disk(f"{new_model}_test_dataset")
+
 # Save the fine-tuned model
 trainer.model.save_pretrained(new_model)
