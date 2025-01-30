@@ -6,7 +6,7 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     BitsAndBytesConfig,
-    TrainingArguments,
+    TrainingArguments, DataCollatorWithPadding,
 )
 from peft import LoraConfig
 from trl import SFTTrainer
@@ -105,6 +105,9 @@ training_arguments = TrainingArguments(
 )
 
 # Initialize the trainer
+data_collator = DataCollatorWithPadding(tokenizer, padding=True, truncation=True)
+
+# Инициализация тренера
 trainer = SFTTrainer(
     model=model,
     train_dataset=dataset['train'],
@@ -112,6 +115,7 @@ trainer = SFTTrainer(
     peft_config=peft_config,
     args=training_arguments,
     tokenizer=tokenizer,
+    data_collator=data_collator,
 )
 
 # Start training
