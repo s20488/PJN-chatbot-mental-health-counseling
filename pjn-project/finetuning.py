@@ -30,7 +30,7 @@ output_dir = f"./results-{new_model}"
 # Load the dataset
 dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
 
-# Split the dataset into train, validation, and test sets
+# Split the dataset into train (80%), validation (10%), and test (10%) sets
 train_test_split = dataset.train_test_split(test_size=0.1)
 train_val_split = train_test_split['train'].train_test_split(test_size=0.1)
 
@@ -39,7 +39,7 @@ val_dataset = train_val_split['test']
 test_dataset = train_test_split['test']
 
 
-# Preprocess the data by combining "Context" and "Response"
+# Preprocess the data by combining "Context" and "Response" to create instruction
 def preprocess_function(examples):
     return {
         "text": f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>"
