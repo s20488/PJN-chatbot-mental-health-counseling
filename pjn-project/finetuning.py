@@ -30,22 +30,32 @@ output_dir = f"./results-{new_model}"
 # Load the dataset
 dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
 
+# Split the dataset into train (80%), validation (10%), and test (10%) sets
+train_test_split = dataset.train_test_split(test_size=0.1)
+train_val_split = train_test_split['train'].train_test_split(test_size=0.1)
 
-# Preprocess the data by combining "Context" and "Response" to create instructions
+train_dataset = train_val_split['train']
+val_dataset = train_val_split['test']
+test_dataset = train_test_split['test']
+
+
+# Preprocess the data by combining "Context" and "Response" to create instruction
 def preprocess_function(examples):
     return {
         "text": f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>"
     }
 
 
-dataset = dataset.map(preprocess_function)
+train_dataset = train_dataset.map(preprocess_function)
+val_dataset = val_dataset.map(preprocess_function)
+test_dataset = test_dataset.map(preprocess_function)
 
 # 4-bit quantization configuration
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_quant_type="nf4",
     bnb_4bit_compute_dtype=getattr(torch, "float16"),
-    bnb_4bit_use_double_quant=False,
+    bnb_4bit_use_double_quant=False
 )
 
 # Load the base model
@@ -78,6 +88,10 @@ training_arguments = TrainingArguments(
     output_dir=output_dir,
     num_train_epochs=5,
     per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
+    eval_strategy="epoch",
+    save_strategy="epoch",
+    remove_unused_columns=False,
     gradient_accumulation_steps=1,
     optim="paged_adamw_32bit",
     save_steps=10,
@@ -91,20 +105,23 @@ training_arguments = TrainingArguments(
     warmup_ratio=0.03,
     group_by_length=True,
     max_steps=-1,
-    logging_dir='./logs',
+    logging_dir='./logs'
 )
 
 # Initialize the trainer
 trainer = SFTTrainer(
     model=model,
-    train_dataset=dataset,
+    train_dataset=train_dataset,
+    eval_dataset=val_dataset,
     peft_config=peft_config,
     args=training_arguments,
-    processing_class=tokenizer,
+    processing_class=tokenizer
 )
 
 # Start training
 trainer.train()
+
+test_dataset.save_to_disk(f"{new_model}_test_dataset")
 
 # Save the fine-tuned model
 trainer.model.save_pretrained(new_model)
