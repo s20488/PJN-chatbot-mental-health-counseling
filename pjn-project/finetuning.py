@@ -66,7 +66,7 @@ model.config.use_cache = False
 model.config.pretraining_tp = 1
 
 # Load the tokenizer
-tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, legacy=False)
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"
 
