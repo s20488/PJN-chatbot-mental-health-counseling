@@ -30,8 +30,7 @@ output_dir = f"./results-{new_model}"
 # Load the dataset
 dataset = load_dataset("json", data_files="combined_dataset.json")
 
-# Split the dataset into train, validation, and test sets
-dataset = dataset.train_test_split(test_size=0.2, seed=42)
+dataset = dataset['train'].train_test_split(test_size=0.2, seed=42)
 test_valid = dataset['test'].train_test_split(test_size=0.5, seed=42)
 dataset['validation'] = test_valid['train']
 dataset['test'] = test_valid['test']
