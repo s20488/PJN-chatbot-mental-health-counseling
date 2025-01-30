@@ -7,9 +7,7 @@
 - **Link do zbioru danych**: [Mental Health Counseling Conversations](https://huggingface.co/datasets/Amod/mental_health_counseling_conversations)
 
 ### Podział na zbiór train, val i test:
-- **train_dataset** – 80%
-- **val_dataset** – 10%
-- **test_dataset** – 10%
+Nabor danych ładowany jest w całości i wykorzystywany do trenowania modelu
 
 ### Przetwarzanie wstępne:
 Funkcja `preprocess_function` łączy  **Context** i **Response** w jeden ciąg tekstowy, dodając odpowiednie metki, takie jak: `<s>[INST] {context} [/INST] {response} </s>`
