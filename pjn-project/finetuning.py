@@ -125,5 +125,5 @@ trainer.model.save_pretrained(new_model)
 test_results = trainer.predict(dataset['test'])
 
 # Save the test results to a file
-with open("test_results.json", "w") as f:
+with open(f"test_{new_model}_results.json", "w") as f:
     json.dump(test_results, f)
