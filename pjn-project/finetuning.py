@@ -6,7 +6,7 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     BitsAndBytesConfig,
-    TrainingArguments, DataCollatorWithPadding,
+    TrainingArguments,
 )
 from peft import LoraConfig
 from trl import SFTTrainer
@@ -28,7 +28,7 @@ new_model = "llama-68m-finetune-qlora"
 output_dir = f"./results-{new_model}"
 
 # Load the dataset
-dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
+dataset = load_dataset("json", data_files="combined_dataset.json")
 
 # Split the dataset into train, validation, and test sets
 dataset = dataset.train_test_split(test_size=0.2, seed=42)
@@ -83,7 +83,6 @@ peft_config = LoraConfig(
 training_arguments = TrainingArguments(
     output_dir=output_dir,
     num_train_epochs=5,
-    remove_unused_columns=False,
     per_device_train_batch_size=4,
     per_device_eval_batch_size=4,
     gradient_accumulation_steps=1,
@@ -105,8 +104,6 @@ training_arguments = TrainingArguments(
 )
 
 # Initialize the trainer
-data_collator = DataCollatorWithPadding(tokenizer, padding=True, truncation=True)
-
 trainer = SFTTrainer(
     model=model,
     train_dataset=dataset['train'],
@@ -114,7 +111,6 @@ trainer = SFTTrainer(
     peft_config=peft_config,
     args=training_arguments,
     tokenizer=tokenizer,
-    data_collator=data_collator,
 )
 
 # Start training
