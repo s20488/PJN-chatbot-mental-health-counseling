@@ -38,12 +38,15 @@ dataset['test'] = test_valid['test']
 
 # Preprocess the data by combining "Context" and "Response" to create instructions
 def preprocess_function(examples):
-    return {
-        "text": f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>"
-    }
+    return tokenizer(
+        f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>",
+        padding=True,
+        truncation=True,
+        max_length=512,  # You can adjust the max_length as needed
+        return_tensors="pt"
+    )
 
-
-dataset = dataset.map(preprocess_function)
+dataset = dataset.map(preprocess_function, batched=True)
 
 # 4-bit quantization configuration
 bnb_config = BitsAndBytesConfig(
