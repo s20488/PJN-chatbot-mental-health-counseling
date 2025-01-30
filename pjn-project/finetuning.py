@@ -110,7 +110,7 @@ training_arguments = TrainingArguments(
     max_steps=-1,
     logging_dir='./logs',
     eval_strategy="steps",
-    eval_steps=10,
+    eval_steps=50,
 )
 
 # Initialize the trainer
