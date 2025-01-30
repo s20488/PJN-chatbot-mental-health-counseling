@@ -64,16 +64,16 @@ tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"
 
 def preprocess_function(examples):
-    return tokenizer(
-        f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>",
+    inputs = [f"<s>[INST] {context} [/INST] {response} </s>" for context, response in zip(examples['Context'], examples['Response'])]
+    model_inputs = tokenizer(
+        inputs,
         padding=True,
         truncation=True,
-        max_length=512,  # You can adjust the max_length as needed
-        return_tensors="pt"
+        max_length=512,  # Вы можете настроить max_length по необходимости
     )
+    return model_inputs
 
-
-dataset = dataset.map(preprocess_function, batched=True)
+dataset = dataset.map(preprocess_function, batched=True, remove_columns=["Context", "Response"])
 
 # LoRA configuration for fine-tuning
 peft_config = LoraConfig(
