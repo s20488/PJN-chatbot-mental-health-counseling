@@ -98,7 +98,7 @@ training_arguments = TrainingArguments(
 # Initialize the trainer
 trainer = SFTTrainer(
     model=model,
-    train_dataset=train_dataset,
+    train_dataset=dataset,
     peft_config=peft_config,
     args=training_arguments,
     processing_class=tokenizer,
