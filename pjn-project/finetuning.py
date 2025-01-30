@@ -1,3 +1,4 @@
+import json
 import os
 import torch
 from datasets import load_dataset, DatasetDict
@@ -35,11 +36,13 @@ test_valid = dataset['test'].train_test_split(test_size=0.5, seed=42)
 dataset['validation'] = test_valid['train']
 dataset['test'] = test_valid['test']
 
+
 # Preprocess the data by combining "Context" and "Response" to create instructions
 def preprocess_function(examples):
     return {
         "text": f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>"
     }
+
 
 dataset = dataset.map(preprocess_function)
 
@@ -121,4 +124,7 @@ trainer.model.save_pretrained(new_model)
 
 # Test the model
 test_results = trainer.predict(dataset['test'])
-print(test_results)
+
+# Save the test results to a file
+with open("test_results.json", "w") as f:
+    json.dump(test_results, f)
