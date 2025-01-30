@@ -107,7 +107,6 @@ training_arguments = TrainingArguments(
 # Initialize the trainer
 data_collator = DataCollatorWithPadding(tokenizer, padding=True, truncation=True)
 
-# Инициализация тренера
 trainer = SFTTrainer(
     model=model,
     train_dataset=dataset['train'],
