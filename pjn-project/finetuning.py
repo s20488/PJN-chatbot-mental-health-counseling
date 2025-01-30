@@ -1,5 +1,7 @@
 import json
 import os
+
+import numpy as np
 import torch
 from datasets import load_dataset
 from transformers import (
@@ -133,6 +135,19 @@ trainer.model.save_pretrained(new_model)
 # Test the model
 test_results = trainer.predict(dataset['test'])
 
-# Save the test results to a file
+
+def convert_to_serializable(obj):
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, dict):
+        return {k: convert_to_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [convert_to_serializable(i) for i in obj]
+    return obj
+
+
+
+# Сохранение результатов тестирования в файл
+test_results_serializable = convert_to_serializable(test_results)
 with open(f"test_{new_model}_results.json", "w") as f:
-    json.dump(test_results, f)
+    json.dump(test_results_serializable, f)
