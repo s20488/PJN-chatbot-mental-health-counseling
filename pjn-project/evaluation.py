@@ -114,7 +114,7 @@ results_file_path = f"metrics-results-{new_model}.json"
 with open(results_file_path, 'w', encoding='utf-8') as results_file:
     json.dump(average_metrics, results_file, ensure_ascii=False, indent=4)
 
-test_dataset = load_from_disk(f"new_model")
+test_dataset = load_from_disk(new_model)
 
 # Create a Trainer for testing only
 trainer = SFTTrainer(
