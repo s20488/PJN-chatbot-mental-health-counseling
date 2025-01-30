@@ -1,7 +1,7 @@
 import json
 import os
 import torch
-from datasets import load_dataset, DatasetDict
+from datasets import load_dataset
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
@@ -63,15 +63,17 @@ tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, le
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"
 
+
 def preprocess_function(examples):
     inputs = [f"<s>[INST] {context} [/INST] {response} </s>" for context, response in zip(examples['Context'], examples['Response'])]
     model_inputs = tokenizer(
         inputs,
         padding=True,
         truncation=True,
-        max_length=512,  # Вы можете настроить max_length по необходимости
+        max_length=512,
     )
     return model_inputs
+
 
 dataset = dataset.map(preprocess_function, batched=True, remove_columns=["Context", "Response"])
 
