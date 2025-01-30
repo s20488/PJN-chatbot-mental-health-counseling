@@ -1,7 +1,6 @@
 import os
-
 import torch
-from datasets import load_dataset
+from datasets import load_dataset, DatasetDict
 from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
@@ -29,8 +28,12 @@ output_dir = f"./results-{new_model}"
 
 # Load the dataset
 dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
-val_dataset = load_dataset("json", data_files="combined_dataset.json", split="validation")
-test_dataset = load_dataset("json", data_files="combined_dataset.json", split="test")
+
+# Split the dataset into train, validation, and test sets
+dataset = dataset.train_test_split(test_size=0.2, seed=42)
+test_valid = dataset['test'].train_test_split(test_size=0.5, seed=42)
+dataset['validation'] = test_valid['train']
+dataset['test'] = test_valid['test']
 
 # Preprocess the data by combining "Context" and "Response" to create instructions
 def preprocess_function(examples):
@@ -39,8 +42,6 @@ def preprocess_function(examples):
     }
 
 dataset = dataset.map(preprocess_function)
-val_dataset = val_dataset.map(preprocess_function)
-test_dataset = test_dataset.map(preprocess_function)
 
 # 4-bit quantization configuration
 bnb_config = BitsAndBytesConfig(
@@ -102,8 +103,8 @@ training_arguments = TrainingArguments(
 # Initialize the trainer
 trainer = SFTTrainer(
     model=model,
-    train_dataset=dataset,
-    eval_dataset=val_dataset,
+    train_dataset=dataset['train'],
+    eval_dataset=dataset['validation'],
     peft_config=peft_config,
     args=training_arguments,
     processing_class=tokenizer,
@@ -119,5 +120,5 @@ trainer.evaluate()
 trainer.model.save_pretrained(new_model)
 
 # Test the model
-test_results = trainer.predict(test_dataset)
+test_results = trainer.predict(dataset['test'])
 print(test_results)
