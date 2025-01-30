@@ -1,7 +1,5 @@
-import json
 import os
 
-import numpy as np
 import torch
 from datasets import load_dataset
 from transformers import (
@@ -30,16 +28,17 @@ new_model = "llama-68m-finetune-qlora"
 output_dir = f"./results-{new_model}"
 
 # Load the dataset
-dataset = load_dataset("json", data_files="combined_dataset.json")
-
-dataset = dataset['train'].train_test_split(test_size=0.2, seed=42)
-test_valid = dataset['test'].train_test_split(test_size=0.5, seed=42)
-dataset['validation'] = test_valid['train']
-dataset['test'] = test_valid['test']
+dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
 
 
 # Preprocess the data by combining "Context" and "Response" to create instructions
+def preprocess_function(examples):
+    return {
+        "text": f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>"
+    }
 
+
+dataset = dataset.map(preprocess_function)
 
 # 4-bit quantization configuration
 bnb_config = BitsAndBytesConfig(
@@ -65,20 +64,6 @@ tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, le
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"
 
-
-def preprocess_function(examples):
-    inputs = [f"<s>[INST] {context} [/INST] {response} </s>" for context, response in zip(examples['Context'], examples['Response'])]
-    model_inputs = tokenizer(
-        inputs,
-        padding=True,
-        truncation=True,
-        max_length=200,
-    )
-    return model_inputs
-
-
-dataset = dataset.map(preprocess_function, batched=True, remove_columns=["Context", "Response"])
-
 # LoRA configuration for fine-tuning
 peft_config = LoraConfig(
     lora_alpha=16,
@@ -91,14 +76,13 @@ peft_config = LoraConfig(
 # Training arguments
 training_arguments = TrainingArguments(
     output_dir=output_dir,
-    num_train_epochs=1,
-    remove_unused_columns=False,
+    num_train_epochs=5,
     per_device_train_batch_size=4,
     per_device_eval_batch_size=4,
     gradient_accumulation_steps=1,
     optim="paged_adamw_32bit",
-    save_steps=50,
-    logging_steps=50,
+    save_steps=10,
+    logging_steps=10,
     learning_rate=2e-4,
     fp16=False,
     bf16=True,
@@ -109,15 +93,12 @@ training_arguments = TrainingArguments(
     group_by_length=True,
     max_steps=-1,
     logging_dir='./logs',
-    eval_strategy="steps",
-    eval_steps=50,
 )
 
 # Initialize the trainer
 trainer = SFTTrainer(
     model=model,
-    train_dataset=dataset['train'],
-    eval_dataset=dataset['validation'],
+    train_dataset=dataset,
     peft_config=peft_config,
     args=training_arguments,
     processing_class=tokenizer,
@@ -126,20 +107,5 @@ trainer = SFTTrainer(
 # Start training
 trainer.train()
 
-# Evaluate the model
-trainer.evaluate()
-
 # Save the fine-tuned model
 trainer.model.save_pretrained(new_model)
-
-# Test the model
-test_results = trainer.predict(dataset['test'])
-
-test_results_serializable = {
-    "predictions": test_results.predictions.tolist(),
-    "label_ids": test_results.label_ids.tolist(),
-    "metrics": test_results.metrics
-}
-
-with open(f"test_{new_model}_results.json", "w") as f:
-    json.dump(test_results_serializable, f, indent=4)
