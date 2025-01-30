@@ -55,7 +55,7 @@ bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_quant_type="nf4",
     bnb_4bit_compute_dtype=getattr(torch, "float16"),
-    bnb_4bit_use_double_quant=False,
+    bnb_4bit_use_double_quant=False
 )
 
 # Load the base model
@@ -104,7 +104,7 @@ training_arguments = TrainingArguments(
     warmup_ratio=0.03,
     group_by_length=True,
     max_steps=-1,
-    logging_dir='./logs',
+    logging_dir='./logs'
 )
 
 # Initialize the trainer
@@ -114,7 +114,7 @@ trainer = SFTTrainer(
     eval_dataset=val_dataset,
     peft_config=peft_config,
     args=training_arguments,
-    tokenizer=tokenizer,
+    tokenizer=tokenizer
 )
 
 # Start training
