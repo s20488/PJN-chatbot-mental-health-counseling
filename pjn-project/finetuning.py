@@ -70,7 +70,7 @@ def preprocess_function(examples):
         inputs,
         padding=True,
         truncation=True,
-        max_length=512,
+        max_length=200,
     )
     return model_inputs
 
