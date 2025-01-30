@@ -29,7 +29,8 @@ output_dir = f"./results-{new_model}"
 
 # Load the dataset
 dataset = load_dataset("json", data_files="combined_dataset.json", split="train")
-
+val_dataset = load_dataset("json", data_files="combined_dataset.json", split="validation")
+test_dataset = load_dataset("json", data_files="combined_dataset.json", split="test")
 
 # Preprocess the data by combining "Context" and "Response" to create instructions
 def preprocess_function(examples):
@@ -37,8 +38,9 @@ def preprocess_function(examples):
         "text": f"<s>[INST] {examples['Context']} [/INST] {examples['Response']} </s>"
     }
 
-
 dataset = dataset.map(preprocess_function)
+val_dataset = val_dataset.map(preprocess_function)
+test_dataset = test_dataset.map(preprocess_function)
 
 # 4-bit quantization configuration
 bnb_config = BitsAndBytesConfig(
@@ -93,12 +95,15 @@ training_arguments = TrainingArguments(
     group_by_length=True,
     max_steps=-1,
     logging_dir='./logs',
+    evaluation_strategy="steps",
+    eval_steps=10,
 )
 
 # Initialize the trainer
 trainer = SFTTrainer(
     model=model,
     train_dataset=dataset,
+    eval_dataset=val_dataset,
     peft_config=peft_config,
     args=training_arguments,
     processing_class=tokenizer,
@@ -107,5 +112,12 @@ trainer = SFTTrainer(
 # Start training
 trainer.train()
 
+# Evaluate the model
+trainer.evaluate()
+
 # Save the fine-tuned model
 trainer.model.save_pretrained(new_model)
+
+# Test the model
+test_results = trainer.predict(test_dataset)
+print(test_results)
