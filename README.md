@@ -11,9 +11,6 @@ Nabor danych ładowany jest w całości i wykorzystywany do trenowania modelu
 
 ### Przetwarzanie wstępne:
 Funkcja `preprocess_function` łączy  **Context** i **Response** w jeden ciąg tekstowy, dodając odpowiednie metki, takie jak: `<s>[INST] {context} [/INST] {response} </s>`
-
-### Augmentacja danych:
-- **Brak augmentacji danych**
 ---
 ## Model i architektura
 - **Architektura**: Transformer
