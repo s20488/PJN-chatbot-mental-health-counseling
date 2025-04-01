@@ -1,68 +1,67 @@
-# Projekt: Chat-bot for psychological counselling
+# Project: Chatbot for Mental Health Counseling
 
-## Zbiór danych
-- **Liczba tekstów**: 3,512
+## Dataset
+- **Number of texts**: 3,512
 - **Format**: JSON
-- **Anotacje**: Każda próbka zawiera dwie kolumny tekstowe **"Context"** i **"Response"**
-- **Link do zbioru danych**: [Mental Health Counseling Conversations](https://huggingface.co/datasets/Amod/mental_health_counseling_conversations)
+- **Annotations**: Each sample contains two text columns: **"Context"** and **"Response"**
+- **Dataset link:**: [Mental Health Counseling Conversations](https://huggingface.co/datasets/Amod/mental_health_counseling_conversations)
 
-### Podział na zbiór train, val i test:
-Nabor danych ładowany jest w całości i wykorzystywany do trenowania modelu
+### Train/Val/Test Split:
+The dataset is loaded in its entirety and used for model training.
 
-### Przetwarzanie wstępne:
-Funkcja `preprocess_function` łączy  **Context** i **Response** w jeden ciąg tekstowy, dodając odpowiednie metki, takie jak: `<s>[INST] {context} [/INST] {response} </s>`
+### Preprocessing:
+The  `preprocess_function` combines  **Context** and **Response** into a single text string, adding special tokens such as: `<s>[INST] {context} [/INST] {response} </s>`
 
 ---
-## Model i architektura
-- **Architektura**: Transformer
-- **Użyty model**: 
+## Model and Architecture
+- **Architecture**: Transformer
+- **Models used**: 
   - **LLaMA-2-7b-chat-hf**
   - **LLaMA-3.2-1B-Instruct**
   - **LLaMA-68m**
 
-### Modyfikacje i dostrojenie modelu:
-1. **LoRA**: Technika adaptacji dużych modeli do specyficznych zadań при minimalnym koszcie obliczeniowym
-2. **QLoRA**: Kwantowanie 4-bitowe, które zmniejsza rozmiar modelu, oszczędza pamięć i przyspiesza obliczenia
+### Modifications and Fine-Tuning:
+1. **LoRA**: A technique for adapting large models to specific tasks with minimal computational overhead.
+2. **QLoRA**: 4-bit quantization, which reduces model size, saves memory, and speeds up computations.
 
-### Inspiracja:
+### Inspiration:
 - [Fine-tuning LLaMA-2 using LoRA and QLoRA - A Comprehensive Guide](https://medium.com/@harsh.vardhan7695/fine-tuning-llama-2-using-lora-and-qlora-a-comprehensive-guide-fd2260f0aa5f)
 ---
-## Metodologia
+## Methodology
 
 ### Preprocessing:
-- **AutoTokenizer** dzieli tekst na tokeny i zamienia je na liczby, a następnie przygotowuje prompt w odpowiednim formacie:
+- **AutoTokenizer** splits text into tokens, converts them to numerical IDs, and formats prompts as:
   `"<s>[INST] {prompt} [/INST]"`
 
-### Trening:
-- Model **LLaMA** jest dostosowywany do danych przy użyciu **fine-tuning** z technikami **LoRA** i **QLoRA**
+### Training:
+- The **LLaMA** model is **fine-tuning** on the data using **LoRA** and **QLoRA** techniques.
 
-### Ewaluacja:
-- Ocena jakości tekstu odbywa się przy pomocy metryk:
+### Evaluation:
+- Text quality is assessed using the following metrics:
   - **BLEU**
   - **Perplexity**
   - **VADER Empathy Score**
   - **Relevance Score**
 
-### Modele i podejścia (prompting):
-- **Użyty model**: LLaMA-2-7b-chat-hf, LLaMA-3.2-1B-Instruct, LLaMA-68m
-- **Instruction-based prompting**: Model reaguje na instrukcje w postaci tekstu, generując odpowiedzi na podstawie przekazanych promptów
+### Models and Prompting Approaches:
+- **Models used**: LLaMA-2-7b-chat-hf, LLaMA-3.2-1B-Instruct, LLaMA-68m
+- **Instruction-based prompting**: The model responds to textual instructions, generating answers based on provided prompts.
 ---
-## Miary jakości modelu:
-1. **BLEU**: Mierzy jakość generowanego tekstu w porównaniu do referencyjnych odpowiedzi
-   - **Kryteria akceptacji**: BLEU > 0.3
-2. **Perplexity**: Mierzy, jak dobrze model przewiduje następne słowo w sekwencji
-   - **Kryteria akceptacji**: Perplexity < 0.5
-3. **VADER Empathy Score**: Ocena emocjonalnego tonu wygenerowanego tekstu
-   - **Kryteria akceptacji**: Empathy score > 0.5
-4. **Dialog Quality Metrics**: Ocena długości odpowiedzi (length) i liczby unikalnych słów (unique words), 
-co pomaga określić szczegółowość i różnorodność odpowiedzi
-   - **Kryteria akceptacji**: 
-   - **Length**: Odpowiedzi o odpowiedniej długości
-   - **Unique words**: Wyższa liczba unikalnych słów = większa różnorodność odpowiedzi
-5. **Relevance Score**: Ocena, jak silnie wygenerowany tekst odpowiada na zapytanie
-   - **Kryteria akceptacji**: Relevance score > 0.7
+## Model Quality Metrics:
+1. **BLEU**: Measures the quality of generated text against reference responses.
+   - **Acceptance threshold**: BLEU > 0.3
+2. **Perplexity**: Measures how well the model predicts the next word in a sequence.
+   - **Acceptance threshold**: Perplexity < 0.5
+3. **VADER Empathy Score**: Evaluates the emotional tone of generated text.
+   - **Acceptance threshold**: Empathy score > 0.5
+4. **Dialog Quality Metrics**: Assesses response length and unique word count to determine detail and diversity.
+   - **Acceptance criteria**: 
+   - **Length**: Appropriately long responses.
+   - **Unique words**: Higher counts indicate greater response variety.
+5. **Relevance Score**: Measures how strongly the generated text addresses the query.
+   - **Acceptance threshold**: Relevance score > 0.7
 
-### Wyniki:
+### Results:
 - **LLaMA-2-7b-chat-hf**
 ```json
 {
@@ -103,14 +102,14 @@ co pomaga określić szczegółowość i różnorodność odpowiedzi
 }
 ```
 ---
-## Dodatkowe biblioteki:
+## Additional Libraries:
 - **Transformers**
 - **Peft**
 - **SpaCy**
 - **NLTK**
 - **Torch**
 
-## Środowisko sprzętowe i programowe:
+## Hardware and Software Environment:
 - **GPU**: NVIDIA L40 (48GB)
 - **RAM**: 117GB
 - **CUDA**: 12.6
