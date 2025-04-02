@@ -1,4 +1,4 @@
-# Project: Chatbot for Mental Health Counseling
+# Chatbot for Mental Health Counseling
 
 ## Dataset
 - **Number of texts**: 3,512
